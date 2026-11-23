@@ -1,0 +1,44 @@
+name: Build Windows Desktop App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Run Node Tests
+        run: npm run test:js
+
+      - name: Build Standalone Windows Executable
+        run: npx tauri build --no-bundle
+
+      - name: Prepare Output Executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path output
+          Copy-Item "src-tauri/target/release/yt-music-tauri.exe" -Destination "output/YouTube Music.exe"
+
+      - name: Upload Desktop Application
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouTube-Music-Windows-App
+          path: output/YouTube Music.exe
