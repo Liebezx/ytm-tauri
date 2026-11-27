@@ -50,7 +50,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDRDA5QzYwMzFCQTRDNUEKUldSYVRMb3hZSnpRL0g0UEI3b1Iybm9aSXVqbUxWQkpjZVdqQVZCSmwzUlhaUCtuRGczTFd6N3cK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxNTAwMzM3RDIxOThCNkYKUldSdml4blNOd05RNGRiNVRicEdEcGc5OXlvN0JDMnRUYisrelhwMGkzT3FQVGlDeEp0bGVXaTMK",
       "endpoints": [
         "https://github.com/Liebezx/ytm-tauri/releases/latest/download/latest.json"
       ],
