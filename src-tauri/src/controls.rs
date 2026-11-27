@@ -357,7 +357,12 @@ fn build_tray(app: &App, initial: &settings::Settings) -> tauri::Result<ShellUi>
         .item(&notifications)
         .build()?;
 
-    let equalizer = feature_item(app, EQUALIZER_ID, "10-полосный эквалайзер", initial.equalizer)?;
+    let equalizer = feature_item(
+        app,
+        EQUALIZER_ID,
+        "10-полосный эквалайзер",
+        initial.equalizer,
+    )?;
     let precise_volume = feature_item(
         app,
         PRECISE_VOLUME_ID,
@@ -415,12 +420,7 @@ fn build_tray(app: &App, initial: &settings::Settings) -> tauri::Result<ShellUi>
         "Слайдер скорости трека",
         initial.playback_speed,
     )?;
-    let crossfade = feature_item(
-        app,
-        CROSSFADE_ID,
-        "Плавный кроссфейд",
-        initial.crossfade,
-    )?;
+    let crossfade = feature_item(app, CROSSFADE_ID, "Плавный кроссфейд", initial.crossfade)?;
     let smart_playback = SubmenuBuilder::new(app, "Умное воспроизведение")
         .item(&sponsorblock)
         .item(&crossfade)
@@ -1052,9 +1052,11 @@ pub fn update_now_playing(app: &AppHandle, track: Option<&TrackMetadata>) {
             let label = now_playing_label(track);
             let tooltip = tray_tooltip(track);
             let _ = shell.now_playing.set_text(label);
-            let _ = shell
-                .play_pause
-                .set_text(if track.playing { "Пауза" } else { "Играть" });
+            let _ = shell.play_pause.set_text(if track.playing {
+                "Пауза"
+            } else {
+                "Играть"
+            });
             let _ = shell.tray.set_tooltip(Some(tooltip));
         }
         None => {

@@ -102,9 +102,7 @@ pub fn run() {
     }
     let startup_enabled = platform::startup_enabled();
     if settings::snapshot(&settings).launch_at_startup != startup_enabled {
-        settings::update(&settings, |value| {
-            value.launch_at_startup = startup_enabled
-        });
+        settings::update(&settings, |value| value.launch_at_startup = startup_enabled);
     }
     let initial = settings::snapshot(&settings);
     let presence = PresenceController::new(initial.discord_rpc, initial.spotify_spoof);
@@ -314,8 +312,7 @@ pub fn run() {
                     NewWindowResponse::Deny
                 })
                 .on_document_title_changed(move |window, title| {
-                    if title.starts_with("YTMCMD:") {
-                        let cmd = &title["YTMCMD:".len()..];
+                    if let Some(cmd) = title.strip_prefix("YTMCMD:") {
                         match cmd {
                             "minimize" => {
                                 let _ = window.minimize();

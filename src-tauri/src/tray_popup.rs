@@ -5,12 +5,12 @@ use crate::{
         CYCLE_LYRICS_EFFECT_ID, DEVTOOLS_ID, DISABLE_AUTOPLAY_ID, DISCORD_RPC_ID,
         DISCORD_STATUS_ID, EQUALIZER_ID, EXPONENTIAL_VOLUME_ID, LASTFM_SCROBBLING_ID,
         LISTENBRAINZ_SCROBBLING_ID, LYRICS_AUTO_SYNC_ID, LYRICS_PRECISE_TIMING_ID,
-        LYRICS_ROMANIZATION_ID, LYRICS_TIMECODES_ID, LYRICS_TRANSLATION_ID,
-        NAVIGATION_CONTROLS_ID, NEXT_ID, NOTIFICATIONS_ID, OPEN_SETTINGS_ID, PLAYBACK_SPEED_ID,
-        PLAY_PAUSE_ID, PRECISE_VOLUME_ID, PREVIOUS_ID, RELOAD_ID, RESET_SESSION_ID,
-        SKIP_DISLIKED_ID, SPONSORBLOCK_ID, SPOTIFY_SPOOF_ID, STARTUP_ID, START_MINIMIZED_ID,
-        SYNCED_LYRICS_ID, TRAY_QUIT_ID, TRAY_SHOW_ID, VIDEO_TOGGLE_ID,
-        WINDOWS_MEDIA_CONTROLS_ID, ZOOM_IN_ID, ZOOM_OUT_ID, ZOOM_RESET_ID,
+        LYRICS_ROMANIZATION_ID, LYRICS_TIMECODES_ID, LYRICS_TRANSLATION_ID, NAVIGATION_CONTROLS_ID,
+        NEXT_ID, NOTIFICATIONS_ID, OPEN_SETTINGS_ID, PLAYBACK_SPEED_ID, PLAY_PAUSE_ID,
+        PRECISE_VOLUME_ID, PREVIOUS_ID, RELOAD_ID, RESET_SESSION_ID, SKIP_DISLIKED_ID,
+        SPONSORBLOCK_ID, SPOTIFY_SPOOF_ID, STARTUP_ID, START_MINIMIZED_ID, SYNCED_LYRICS_ID,
+        TRAY_QUIT_ID, TRAY_SHOW_ID, VIDEO_TOGGLE_ID, WINDOWS_MEDIA_CONTROLS_ID, ZOOM_IN_ID,
+        ZOOM_OUT_ID, ZOOM_RESET_ID,
     },
     settings,
 };
@@ -37,22 +37,23 @@ use windows::{
                     D2D_SIZE_F,
                 },
                 D2D1CreateFactory, ID2D1DCRenderTarget, ID2D1Factory, ID2D1GradientStopCollection,
-                ID2D1LinearGradientBrush, ID2D1RenderTarget, ID2D1SolidColorBrush, ID2D1StrokeStyle,
-                D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE,
-                D2D1_CAP_STYLE_ROUND, D2D1_DASH_STYLE_SOLID, D2D1_DRAW_TEXT_OPTIONS_CLIP,
-                D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_MULTI_THREADED,
-                D2D1_GAMMA_2_2, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_LINE_JOIN_ROUND,
+                ID2D1LinearGradientBrush, ID2D1RenderTarget, ID2D1SolidColorBrush,
+                ID2D1StrokeStyle, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1_ARC_SEGMENT,
+                D2D1_ARC_SIZE_LARGE, D2D1_CAP_STYLE_ROUND, D2D1_DASH_STYLE_SOLID,
+                D2D1_DRAW_TEXT_OPTIONS_CLIP, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
+                D2D1_FACTORY_TYPE_MULTI_THREADED, D2D1_GAMMA_2_2,
+                D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_LINE_JOIN_ROUND,
                 D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
                 D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT, D2D1_STROKE_STYLE_PROPERTIES,
                 D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE,
             },
             DirectWrite::{
-                DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat,
-                DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_WEIGHT, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+                DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat, DWRITE_FACTORY_TYPE_SHARED,
+                DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT,
+                DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_WEIGHT_SEMI_BOLD,
                 DWRITE_MEASURING_MODE_NATURAL, DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                DWRITE_TEXT_ALIGNMENT, DWRITE_TEXT_ALIGNMENT_CENTER,
-                DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TRIMMING,
+                DWRITE_TEXT_ALIGNMENT, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_LEADING,
+                DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TRIMMING,
                 DWRITE_TRIMMING_GRANULARITY_CHARACTER, DWRITE_WORD_WRAPPING_NO_WRAP,
             },
             Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -145,7 +146,10 @@ pub fn install(app: AppHandle, state: AppState) {
 pub fn toggle(app: &AppHandle) {
     let app_handle = app.clone();
     let _ = app.run_on_main_thread(move || {
-        let Some(state) = app_handle.try_state::<AppState>().map(|s| s.inner().clone()) else {
+        let Some(state) = app_handle
+            .try_state::<AppState>()
+            .map(|s| s.inner().clone())
+        else {
             return;
         };
         let Some(hwnd) = ensure_window(&app_handle, &state) else {
@@ -324,7 +328,12 @@ unsafe fn show_hwnd(hwnd: HWND, data: &mut PopupData) {
     let max_h = (work.bottom - work.top - 16).max(320);
     let full_h = (((POPUP_H + SHADOW_PAD * 2.0) * scale).round() as i32).min(max_h);
 
-    let (x, y) = compute_popup_origin(cursor, (full_w, full_h), work, (SHADOW_PAD * scale).round() as i32);
+    let (x, y) = compute_popup_origin(
+        cursor,
+        (full_w, full_h),
+        work,
+        (SHADOW_PAD * scale).round() as i32,
+    );
 
     data.hovered = None;
     data.pressed = None;
@@ -354,7 +363,12 @@ unsafe fn hide_hwnd(hwnd: HWND, data: &mut PopupData) {
     }
 }
 
-fn compute_popup_origin(cursor: POINT, win_size: (i32, i32), work: RECT, shadow_pad: i32) -> (i32, i32) {
+fn compute_popup_origin(
+    cursor: POINT,
+    win_size: (i32, i32),
+    work: RECT,
+    shadow_pad: i32,
+) -> (i32, i32) {
     let (win_w, win_h) = win_size;
     let margin = 10 - shadow_pad;
     let min_x = work.left + margin;
@@ -382,8 +396,7 @@ unsafe extern "system" fn wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     if msg == WM_NCCREATE {
-        let cs = &*(lparam.0
-            as *const windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW);
+        let cs = &*(lparam.0 as *const windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW);
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, cs.lpCreateParams as isize);
         return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
@@ -437,7 +450,11 @@ unsafe extern "system" fn wnd_proc(
             let lx = ((lparam.0 & 0xFFFF) as i16) as f32 / scale - SHADOW_PAD;
             let ly = (((lparam.0 >> 16) & 0xFFFF) as i16) as f32 / scale - SHADOW_PAD;
             let next_hover = hit_test(&data.hits, lx, ly);
-            let cursor_id = if next_hover.is_some() { IDC_HAND } else { IDC_ARROW };
+            let cursor_id = if next_hover.is_some() {
+                IDC_HAND
+            } else {
+                IDC_ARROW
+            };
             if let Ok(cursor) = LoadCursorW(None, cursor_id) {
                 SetCursor(Some(cursor));
             }
@@ -492,7 +509,8 @@ unsafe extern "system" fn wnd_proc(
                     let mut pt = POINT::default();
                     if GetCursorPos(&mut pt).is_ok() {
                         let mut rect = RECT::default();
-                        let _ = windows::Win32::UI::WindowsAndMessaging::GetWindowRect(hwnd, &mut rect);
+                        let _ =
+                            windows::Win32::UI::WindowsAndMessaging::GetWindowRect(hwnd, &mut rect);
                         let scale = dpi_scale(hwnd);
                         let lx = (pt.x - rect.left) as f32 / scale - SHADOW_PAD;
                         let ly = (pt.y - rect.top) as f32 / scale - SHADOW_PAD;
@@ -588,14 +606,15 @@ thread_local! {
     static D2D_TLS: std::cell::RefCell<Option<D2dResources>> = const { std::cell::RefCell::new(None) };
 }
 
-fn with_d2d_resources<R>(scale: f32, f: impl FnOnce(&ID2D1Factory, &ID2D1StrokeStyle, &FontBank) -> R) -> Option<R> {
+fn with_d2d_resources<R>(
+    scale: f32,
+    f: impl FnOnce(&ID2D1Factory, &ID2D1StrokeStyle, &FontBank) -> R,
+) -> Option<R> {
     D2D_TLS.with(|cell| {
         let mut slot = cell.borrow_mut();
         if slot.is_none() {
-            let d2d: ID2D1Factory = unsafe {
-                D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, None)
-            }
-            .ok()?;
+            let d2d: ID2D1Factory =
+                unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, None) }.ok()?;
             let dw: IDWriteFactory =
                 unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) }.ok()?;
             let stroke_props = D2D1_STROKE_STYLE_PROPERTIES {
@@ -726,12 +745,36 @@ unsafe fn create_dwrite_font(
 
 unsafe fn build_font_bank(dw: &IDWriteFactory, scale: f32) -> windows::core::Result<FontBank> {
     Ok(FontBank {
-        title: create_dwrite_font(dw, (13.5 * scale).round().max(11.0), DWRITE_FONT_WEIGHT_SEMI_BOLD)?,
-        sub: create_dwrite_font(dw, (11.5 * scale).round().max(10.0), DWRITE_FONT_WEIGHT_REGULAR)?,
-        small_bold: create_dwrite_font(dw, (10.5 * scale).round().max(9.0), DWRITE_FONT_WEIGHT_SEMI_BOLD)?,
-        label: create_dwrite_font(dw, (12.5 * scale).round().max(10.5), DWRITE_FONT_WEIGHT_REGULAR)?,
-        section: create_dwrite_font(dw, (10.8 * scale).round().max(9.5), DWRITE_FONT_WEIGHT_SEMI_BOLD)?,
-        tab_active: create_dwrite_font(dw, (12.5 * scale).round().max(10.5), DWRITE_FONT_WEIGHT_SEMI_BOLD)?,
+        title: create_dwrite_font(
+            dw,
+            (13.5 * scale).round().max(11.0),
+            DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        )?,
+        sub: create_dwrite_font(
+            dw,
+            (11.5 * scale).round().max(10.0),
+            DWRITE_FONT_WEIGHT_REGULAR,
+        )?,
+        small_bold: create_dwrite_font(
+            dw,
+            (10.5 * scale).round().max(9.0),
+            DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        )?,
+        label: create_dwrite_font(
+            dw,
+            (12.5 * scale).round().max(10.5),
+            DWRITE_FONT_WEIGHT_REGULAR,
+        )?,
+        section: create_dwrite_font(
+            dw,
+            (10.8 * scale).round().max(9.5),
+            DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        )?,
+        tab_active: create_dwrite_font(
+            dw,
+            (12.5 * scale).round().max(10.5),
+            DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        )?,
     })
 }
 
@@ -781,10 +824,9 @@ unsafe fn make_linear_brush(
             color: color_from_argb(c2),
         },
     ];
-    let collection: ID2D1GradientStopCollection = g
-        .rt
-        .CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
-        .ok()?;
+    let collection: ID2D1GradientStopCollection =
+        g.rt.CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
+            .ok()?;
     let props = D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES {
         startPoint: d2d_pt(x1, y1),
         endPoint: d2d_pt(x2, y2),
@@ -793,15 +835,7 @@ unsafe fn make_linear_brush(
         .ok()
 }
 
-unsafe fn fill_round_rect(
-    g: &D2dCanvas<'_>,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-    r: f32,
-    color: u32,
-) {
+unsafe fn fill_round_rect(g: &D2dCanvas<'_>, x: f32, y: f32, w: f32, h: f32, r: f32, color: u32) {
     let Some(brush) = make_solid_brush(g, color) else {
         return;
     };
@@ -823,6 +857,7 @@ unsafe fn fill_round_rect(
     g.rt.FillRoundedRectangle(&rr, &brush);
 }
 
+#[allow(clippy::too_many_arguments)]
 unsafe fn stroke_round_rect(
     g: &D2dCanvas<'_>,
     x: f32,
@@ -929,7 +964,11 @@ impl DrawCtx {
     }
 }
 
-unsafe fn fill_polygon(g: &D2dCanvas<'_>, pts: &[windows_numerics::Vector2], brush: &ID2D1SolidColorBrush) {
+unsafe fn fill_polygon(
+    g: &D2dCanvas<'_>,
+    pts: &[windows_numerics::Vector2],
+    brush: &ID2D1SolidColorBrush,
+) {
     if pts.len() < 3 {
         return;
     }
@@ -1010,8 +1049,20 @@ unsafe fn draw_music_note_icon(g: &D2dCanvas<'_>, c: &DrawCtx, x: f32, y: f32, s
     );
     // Crisp vector stems + top slanted beam
     let sw = (2.3 * s).max(1.5);
-    g.rt.DrawLine(pt(18.1, 30.8), pt(18.1, 14.0), &white, sw, Some(g.stroke_style));
-    g.rt.DrawLine(pt(33.3, 28.0), pt(33.3, 11.2), &white, sw, Some(g.stroke_style));
+    g.rt.DrawLine(
+        pt(18.1, 30.8),
+        pt(18.1, 14.0),
+        &white,
+        sw,
+        Some(g.stroke_style),
+    );
+    g.rt.DrawLine(
+        pt(33.3, 28.0),
+        pt(33.3, 11.2),
+        &white,
+        sw,
+        Some(g.stroke_style),
+    );
     let beam = [
         pt(16.95, 13.0),
         pt(34.45, 10.1),
@@ -1186,7 +1237,10 @@ unsafe fn draw_reload_icon(g: &D2dCanvas<'_>, c: &DrawCtx, cx: f32, cy: f32, col
             sink.BeginFigure(start, D2D1_FIGURE_BEGIN_HOLLOW);
             sink.AddArc(&D2D1_ARC_SEGMENT {
                 point: end,
-                size: D2D_SIZE_F { width: r, height: r },
+                size: D2D_SIZE_F {
+                    width: r,
+                    height: r,
+                },
                 rotationAngle: 0.0,
                 sweepDirection: D2D1_SWEEP_DIRECTION_CLOCKWISE,
                 arcSize: D2D1_ARC_SIZE_LARGE,
@@ -1205,7 +1259,14 @@ unsafe fn draw_reload_icon(g: &D2dCanvas<'_>, c: &DrawCtx, cx: f32, cy: f32, col
     fill_polygon(g, &tip, &brush);
 }
 
-unsafe fn draw_plus_minus(g: &D2dCanvas<'_>, c: &DrawCtx, cx: f32, cy: f32, plus: bool, color: u32) {
+unsafe fn draw_plus_minus(
+    g: &D2dCanvas<'_>,
+    c: &DrawCtx,
+    cx: f32,
+    cy: f32,
+    plus: bool,
+    color: u32,
+) {
     let Some(brush) = make_solid_brush(g, color) else {
         return;
     };
@@ -1213,9 +1274,21 @@ unsafe fn draw_plus_minus(g: &D2dCanvas<'_>, c: &DrawCtx, cx: f32, cy: f32, plus
     let y = ((cy + c.oy) * c.scale).round();
     let arm = (4.0 * c.scale).round();
     let sw = (1.6 * c.scale).max(1.3);
-    g.rt.DrawLine(d2d_pt(x - arm, y), d2d_pt(x + arm, y), &brush, sw, Some(g.stroke_style));
+    g.rt.DrawLine(
+        d2d_pt(x - arm, y),
+        d2d_pt(x + arm, y),
+        &brush,
+        sw,
+        Some(g.stroke_style),
+    );
     if plus {
-        g.rt.DrawLine(d2d_pt(x, y - arm), d2d_pt(x, y + arm), &brush, sw, Some(g.stroke_style));
+        g.rt.DrawLine(
+            d2d_pt(x, y - arm),
+            d2d_pt(x, y + arm),
+            &brush,
+            sw,
+            Some(g.stroke_style),
+        );
     }
 }
 
@@ -1271,6 +1344,7 @@ unsafe fn draw_toggle(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 unsafe fn draw_toggle_row(
     g: &D2dCanvas<'_>,
     c: &mut DrawCtx,
@@ -1348,6 +1422,7 @@ unsafe fn draw_toggle_row(
     draw_toggle(g, c, x + w - 46.0, y + (h - 20.0) / 2.0, checked, enabled);
 }
 
+#[allow(clippy::too_many_arguments)]
 unsafe fn draw_action_row(
     g: &D2dCanvas<'_>,
     c: &mut DrawCtx,
@@ -1708,7 +1783,11 @@ unsafe fn render_frame_to_dc(
         );
         draw_text(
             g_guard.0,
-            if win_visible { "Открыть" } else { "Показать" },
+            if win_visible {
+                "Открыть"
+            } else {
+                "Показать"
+            },
             fonts.small_bold.0,
             c.r(pad + inner_w - 86.0, 21.0, 76.0, 24.0),
             argb(255, 250, 250, 255),
@@ -1810,7 +1889,11 @@ unsafe fn render_frame_to_dc(
         );
         draw_text(
             g_guard.0,
-            if is_playing { "Пауза" } else { "Играть" },
+            if is_playing {
+                "Пауза"
+            } else {
+                "Играть"
+            },
             fonts.title.0,
             c.r(mid_x + 34.0, ty, w_mid - 42.0, th),
             argb(255, 255, 255, 255),
@@ -1884,8 +1967,13 @@ unsafe fn render_frame_to_dc(
         {
             let tx = pad + 3.0 + tab_w * i as f32;
             let active = frame.active_tab == tab;
-            let (t_hov, _) =
-                c.push_hit(tx, tab_y + 3.0, tab_w, tab_h - 6.0, HitAction::SelectTab(tab));
+            let (t_hov, _) = c.push_hit(
+                tx,
+                tab_y + 3.0,
+                tab_w,
+                tab_h - 6.0,
+                HitAction::SelectTab(tab),
+            );
             if active {
                 fill_round_rect(
                     g_guard.0,
@@ -1929,7 +2017,11 @@ unsafe fn render_frame_to_dc(
             draw_text(
                 g_guard.0,
                 title,
-                if active { fonts.tab_active.0 } else { fonts.label.0 },
+                if active {
+                    fonts.tab_active.0
+                } else {
+                    fonts.label.0
+                },
                 c.r(tx, tab_y + 3.0, tab_w, tab_h - 6.0),
                 if active {
                     argb(255, 255, 255, 255)
@@ -2200,27 +2292,41 @@ unsafe fn render_frame_to_dc(
 
                 add_section("ТЕКСТ ПЕСНИ", &c, &mut cy);
                 for (label, checked, cmd) in [
-                    ("Синхронный текст песни", snap.synced_lyrics, SYNCED_LYRICS_ID),
-                    ("Автоперевод текста", snap.lyrics_translation, LYRICS_TRANSLATION_ID),
-                    ("Романизация (Romaji)", snap.lyrics_romanization, LYRICS_ROMANIZATION_ID),
-                    ("Таймкоды строк", snap.lyrics_show_timecodes, LYRICS_TIMECODES_ID),
-                    ("Точный тайминг (100 мс)", snap.lyrics_precise_timing, LYRICS_PRECISE_TIMING_ID),
-                    ("Автосинхронизация (3 сек)", snap.lyrics_auto_sync, LYRICS_AUTO_SYNC_ID),
+                    (
+                        "Синхронный текст песни",
+                        snap.synced_lyrics,
+                        SYNCED_LYRICS_ID,
+                    ),
+                    (
+                        "Автоперевод текста",
+                        snap.lyrics_translation,
+                        LYRICS_TRANSLATION_ID,
+                    ),
+                    (
+                        "Романизация (Romaji)",
+                        snap.lyrics_romanization,
+                        LYRICS_ROMANIZATION_ID,
+                    ),
+                    (
+                        "Таймкоды строк",
+                        snap.lyrics_show_timecodes,
+                        LYRICS_TIMECODES_ID,
+                    ),
+                    (
+                        "Точный тайминг (100 мс)",
+                        snap.lyrics_precise_timing,
+                        LYRICS_PRECISE_TIMING_ID,
+                    ),
+                    (
+                        "Автосинхронизация (3 сек)",
+                        snap.lyrics_auto_sync,
+                        LYRICS_AUTO_SYNC_ID,
+                    ),
                 ] {
                     if cy + row_h >= content_top && cy <= content_top + content_h {
                         draw_toggle_row(
-                            g_guard.0,
-                            &mut c,
-                            &fonts,
-                            pad,
-                            cy,
-                            list_w,
-                            row_h,
-                            label,
-                            None,
-                            checked,
-                            true,
-                            cmd,
+                            g_guard.0, &mut c, &fonts, pad, cy, list_w, row_h, label, None,
+                            checked, true, cmd,
                         );
                     }
                     cy += row_h + row_gap;
@@ -2228,7 +2334,10 @@ unsafe fn render_frame_to_dc(
 
                 // Lyrics effect cycle row
                 if cy + row_h >= content_top && cy <= content_top + content_h {
-                    let eff_title = format!("Эффект строк: {}", lyrics_effect_label(&snap.lyrics_line_effect));
+                    let eff_title = format!(
+                        "Эффект строк: {}",
+                        lyrics_effect_label(&snap.lyrics_line_effect)
+                    );
                     draw_action_row(
                         g_guard.0,
                         &mut c,
@@ -2249,29 +2358,43 @@ unsafe fn render_frame_to_dc(
                 for (label, checked, cmd) in [
                     ("10-полосный эквалайзер", snap.equalizer, EQUALIZER_ID),
                     ("Плавный кроссфейд", snap.crossfade, CROSSFADE_ID),
-                    ("SponsorBlock (пропуск вставок)", snap.sponsorblock, SPONSORBLOCK_ID),
+                    (
+                        "SponsorBlock (пропуск вставок)",
+                        snap.sponsorblock,
+                        SPONSORBLOCK_ID,
+                    ),
                     ("Режим «Только аудио»", snap.video_toggle, VIDEO_TOGGLE_ID),
-                    ("Точная громкость (шаг 1%)", snap.precise_volume, PRECISE_VOLUME_ID),
-                    ("Экспоненциальная громкость", snap.exponential_volume, EXPONENTIAL_VOLUME_ID),
-                    ("Слайдер скорости трека", snap.playback_speed, PLAYBACK_SPEED_ID),
+                    (
+                        "Точная громкость (шаг 1%)",
+                        snap.precise_volume,
+                        PRECISE_VOLUME_ID,
+                    ),
+                    (
+                        "Экспоненциальная громкость",
+                        snap.exponential_volume,
+                        EXPONENTIAL_VOLUME_ID,
+                    ),
+                    (
+                        "Слайдер скорости трека",
+                        snap.playback_speed,
+                        PLAYBACK_SPEED_ID,
+                    ),
                     ("Пропускать дизлайки", snap.skip_disliked, SKIP_DISLIKED_ID),
-                    ("Отключить автовоспроизведение", snap.disable_autoplay, DISABLE_AUTOPLAY_ID),
-                    ("Своё устройство вывода", snap.custom_output_device, CUSTOM_OUTPUT_DEVICE_ID),
+                    (
+                        "Отключить автовоспроизведение",
+                        snap.disable_autoplay,
+                        DISABLE_AUTOPLAY_ID,
+                    ),
+                    (
+                        "Своё устройство вывода",
+                        snap.custom_output_device,
+                        CUSTOM_OUTPUT_DEVICE_ID,
+                    ),
                 ] {
                     if cy + row_h >= content_top && cy <= content_top + content_h {
                         draw_toggle_row(
-                            g_guard.0,
-                            &mut c,
-                            &fonts,
-                            pad,
-                            cy,
-                            list_w,
-                            row_h,
-                            label,
-                            None,
-                            checked,
-                            true,
-                            cmd,
+                            g_guard.0, &mut c, &fonts, pad, cy, list_w, row_h, label, None,
+                            checked, true, cmd,
                         );
                     }
                     cy += row_h + row_gap;
@@ -2280,29 +2403,47 @@ unsafe fn render_frame_to_dc(
                 cy += 4.0;
                 add_section("ВНЕШНИЙ ВИД И ИНТЕГРАЦИИ", &c, &mut cy);
                 for (label, checked, cmd) in [
-                    ("Ambient-подсветка плеера", snap.ambient_mode, AMBIENT_MODE_ID),
+                    (
+                        "Ambient-подсветка плеера",
+                        snap.ambient_mode,
+                        AMBIENT_MODE_ID,
+                    ),
                     ("Размытие панелей", snap.blur_nav_bar, BLUR_NAV_BAR_ID),
-                    ("Кнопки Назад / Вперёд в окне", snap.navigation_controls, NAVIGATION_CONTROLS_ID),
-                    ("Уведомления о смене трека", snap.notifications, NOTIFICATIONS_ID),
-                    ("Кнопки в панели задач Windows", snap.windows_media_controls, WINDOWS_MEDIA_CONTROLS_ID),
-                    ("Last.fm скроблинг", snap.lastfm_scrobbling, LASTFM_SCROBBLING_ID),
-                    ("ListenBrainz скроблинг", snap.listenbrainz_scrobbling, LISTENBRAINZ_SCROBBLING_ID),
-                    ("Показывать как Spotify в Discord", snap.spotify_spoof, SPOTIFY_SPOOF_ID),
+                    (
+                        "Кнопки Назад / Вперёд в окне",
+                        snap.navigation_controls,
+                        NAVIGATION_CONTROLS_ID,
+                    ),
+                    (
+                        "Уведомления о смене трека",
+                        snap.notifications,
+                        NOTIFICATIONS_ID,
+                    ),
+                    (
+                        "Кнопки в панели задач Windows",
+                        snap.windows_media_controls,
+                        WINDOWS_MEDIA_CONTROLS_ID,
+                    ),
+                    (
+                        "Last.fm скроблинг",
+                        snap.lastfm_scrobbling,
+                        LASTFM_SCROBBLING_ID,
+                    ),
+                    (
+                        "ListenBrainz скроблинг",
+                        snap.listenbrainz_scrobbling,
+                        LISTENBRAINZ_SCROBBLING_ID,
+                    ),
+                    (
+                        "Показывать как Spotify в Discord",
+                        snap.spotify_spoof,
+                        SPOTIFY_SPOOF_ID,
+                    ),
                 ] {
                     if cy + row_h >= content_top && cy <= content_top + content_h {
                         draw_toggle_row(
-                            g_guard.0,
-                            &mut c,
-                            &fonts,
-                            pad,
-                            cy,
-                            list_w,
-                            row_h,
-                            label,
-                            None,
-                            checked,
-                            true,
-                            cmd,
+                            g_guard.0, &mut c, &fonts, pad, cy, list_w, row_h, label, None,
+                            checked, true, cmd,
                         );
                     }
                     cy += row_h + row_gap;
@@ -2347,7 +2488,11 @@ unsafe fn render_frame_to_dc(
 
                 let ad_sub = format!(
                     "{} · Заблокировано запросов: {}",
-                    if snap.ad_block { "Включена" } else { "Выключена" },
+                    if snap.ad_block {
+                        "Включена"
+                    } else {
+                        "Выключена"
+                    },
                     blocked
                 );
                 draw_action_row(
@@ -2369,20 +2514,14 @@ unsafe fn render_frame_to_dc(
                     ("Очистить кэш и перезагрузить", false, CLEAR_CACHE_ID),
                     ("Проверить обновления", false, CHECK_UPDATES_ID),
                     ("Инструменты разработчика (F12)", false, DEVTOOLS_ID),
-                    ("Сбросить сессию (выйти из аккаунта)", true, RESET_SESSION_ID),
+                    (
+                        "Сбросить сессию (выйти из аккаунта)",
+                        true,
+                        RESET_SESSION_ID,
+                    ),
                 ] {
                     draw_action_row(
-                        g_guard.0,
-                        &mut c,
-                        &fonts,
-                        pad,
-                        cy,
-                        inner_w,
-                        35.0,
-                        title,
-                        None,
-                        danger,
-                        cmd,
+                        g_guard.0, &mut c, &fonts, pad, cy, inner_w, 35.0, title, None, danger, cmd,
                     );
                     cy += 40.0;
                 }
@@ -2547,8 +2686,8 @@ unsafe fn render_hwnd(hwnd: HWND, data: &mut PopupData) {
     let scale = dpi_scale(hwnd);
     let mut win_rect = RECT::default();
     let _ = windows::Win32::UI::WindowsAndMessaging::GetWindowRect(hwnd, &mut win_rect);
-    let px_w = (win_rect.right - win_rect.left)
-        .max(((POPUP_W + SHADOW_PAD * 2.0) * scale).round() as i32);
+    let px_w =
+        (win_rect.right - win_rect.left).max(((POPUP_W + SHADOW_PAD * 2.0) * scale).round() as i32);
     let px_h = (win_rect.bottom - win_rect.top).max(320);
 
     let screen_dc = GetDC(None);
@@ -2728,8 +2867,8 @@ mod render_tests {
                 },
                 ..Default::default()
             };
-            let dib =
-                CreateDIBSection(Some(screen_dc), &bmi, DIB_RGB_COLORS, &mut bits, None, 0).unwrap();
+            let dib = CreateDIBSection(Some(screen_dc), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
+                .unwrap();
             let old_obj = SelectObject(mem_dc, dib.into());
 
             let track = if playing {
@@ -2760,7 +2899,8 @@ mod render_tests {
                 discord_status: "Включено: ожидание Discord",
             };
             render_frame_to_dc(mem_dc, bits.cast::<u32>(), px_w, px_h, scale, &mut frame);
-            let pixels = std::slice::from_raw_parts(bits.cast::<u32>(), (px_w * px_h) as usize).to_vec();
+            let pixels =
+                std::slice::from_raw_parts(bits.cast::<u32>(), (px_w * px_h) as usize).to_vec();
 
             SelectObject(mem_dc, old_obj);
             let _ = DeleteObject(dib.into());
@@ -2861,12 +3001,30 @@ mod tests {
             hovered: None,
             pressed: None,
         };
-        c.push_hit(17.0, 151.0, 110.0, 26.0, HitAction::SelectTab(PopupTab::Main));
+        c.push_hit(
+            17.0,
+            151.0,
+            110.0,
+            26.0,
+            HitAction::SelectTab(PopupTab::Main),
+        );
         c.clip_y = Some((190.0, 468.0));
         // Scrolled-up row positioned behind tabs (140..176) is fully outside clip_y
-        c.push_hit(14.0, 140.0, 344.0, 36.0, HitAction::Command(SYNCED_LYRICS_ID));
+        c.push_hit(
+            14.0,
+            140.0,
+            344.0,
+            36.0,
+            HitAction::Command(SYNCED_LYRICS_ID),
+        );
         // Partially visible top row (172..208) only accepts clicks >= 190
-        c.push_hit(14.0, 172.0, 344.0, 36.0, HitAction::Command(LYRICS_TRANSLATION_ID));
+        c.push_hit(
+            14.0,
+            172.0,
+            344.0,
+            36.0,
+            HitAction::Command(LYRICS_TRANSLATION_ID),
+        );
         c.clip_y = None;
 
         assert_eq!(hit_test(&c.hits, 50.0, 162.0), Some(0));

@@ -186,7 +186,14 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                 .body(format!("Загрузка версии {version}…"))
                 .show();
 
-            publish_status(app, "downloading", &version, "Загрузка обновления…", 0, None);
+            publish_status(
+                app,
+                "downloading",
+                &version,
+                "Загрузка обновления…",
+                0,
+                None,
+            );
             let mut downloaded = 0u64;
             let mut last_progress = Instant::now();
             if let Err(error) = update
@@ -246,11 +253,18 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
             if mode == CheckMode::Manual {
                 platform::info(
                     "Обновление YouTube Music",
-                    &format!("Установлена актуальная версия {}.", env!("CARGO_PKG_VERSION")),
+                    &format!(
+                        "Установлена актуальная версия {}.",
+                        env!("CARGO_PKG_VERSION")
+                    ),
                 );
             }
         }
-        Err(error) => report_error(app, mode, &format!("Не удалось проверить обновления: {error}")),
+        Err(error) => report_error(
+            app,
+            mode,
+            &format!("Не удалось проверить обновления: {error}"),
+        ),
     }
 }
 

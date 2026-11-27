@@ -379,10 +379,7 @@ fn clean_translation_line(original: &str, translated: &str) -> Option<String> {
         return None;
     }
     // Strip spurious trailing period added by machine translators when song line has none
-    if tr.ends_with('.')
-        && !tr.ends_with("..")
-        && !orig.ends_with(['.', '!', '?', '…', ':'])
-    {
+    if tr.ends_with('.') && !tr.ends_with("..") && !orig.ends_with(['.', '!', '?', '…', ':']) {
         tr.pop();
         tr = tr.trim_end().to_string();
     }
@@ -478,7 +475,9 @@ pub fn translate_lines(request: &TranslateRequest) -> TranslateResponse {
     let total = request.lines.len().min(MAX_TRANSLATE_LINES_PER_SONG);
     let mut results: Vec<Option<String>> = vec![None; request.lines.len()];
     if total == 0 {
-        return TranslateResponse { translations: results };
+        return TranslateResponse {
+            translations: results,
+        };
     }
     let target = normalize_target_lang(&request.target);
 
@@ -513,18 +512,22 @@ pub fn translate_lines(request: &TranslateRequest) -> TranslateResponse {
     }
 
     if pending.is_empty() {
-        return TranslateResponse { translations: results };
+        return TranslateResponse {
+            translations: results,
+        };
     }
 
     let Ok(http) = client() else {
-        return TranslateResponse { translations: results };
+        return TranslateResponse {
+            translations: results,
+        };
     };
 
     let mut resolved: Vec<(String, Option<String>)> = Vec::with_capacity(pending.len());
     for chunk in pending.chunks(TRANSLATE_CHUNK_SIZE) {
         let refs: Vec<&str> = chunk.iter().map(String::as_str).collect();
         let (ok, translated) = translate_chunk_exact(http, &target, &refs);
-        for (orig, tr) in chunk.iter().zip(translated.into_iter()) {
+        for (orig, tr) in chunk.iter().zip(translated) {
             if let Some(indices) = unique_indices.get(orig) {
                 for &idx in indices {
                     results[idx] = tr.clone();
@@ -547,7 +550,9 @@ pub fn translate_lines(request: &TranslateRequest) -> TranslateResponse {
         }
     }
 
-    TranslateResponse { translations: results }
+    TranslateResponse {
+        translations: results,
+    }
 }
 
 fn select_best_unified(
@@ -570,7 +575,7 @@ fn select_best_unified(
         return Some(best_synced.result.clone());
     }
 
-    if let Some(ytm) = ytm_fallback.filter(|r| has_plain_text(r)) {
+    if let Some(ytm) = ytm_fallback.filter(has_plain_text) {
         return Some(ytm);
     }
 
@@ -584,13 +589,10 @@ fn select_best_unified(
 }
 
 fn has_usable_synced_lines(result: &LyricsResult) -> bool {
-    result.lines.as_ref().is_some_and(|lines| {
-        lines
-            .iter()
-            .filter(|l| !l.text.trim().is_empty())
-            .count()
-            >= 2
-    })
+    result
+        .lines
+        .as_ref()
+        .is_some_and(|lines| lines.iter().filter(|l| !l.text.trim().is_empty()).count() >= 2)
 }
 
 fn has_plain_text(result: &LyricsResult) -> bool {
@@ -759,7 +761,7 @@ fn lookup_lrclib_scored(query: &TrackQuery) -> Option<ScoredLyrics> {
         if query.duration > 0.0 {
             params.push(("duration", format!("{}", query.duration.round() as i64)));
         }
-        match fetch_json::<LrcLibItem>(&client, "get", &params) {
+        match fetch_json::<LrcLibItem>(client, "get", &params) {
             Fetch::RateLimited => return None,
             Fetch::Found(item) if item.has_lyrics() => {
                 let s = item.score_with(query, MatchMode::Strict);
@@ -808,7 +810,7 @@ fn lookup_lrclib_scored(query: &TrackQuery) -> Option<ScoredLyrics> {
 
     let mut collected: Vec<LrcLibItem> = Vec::new();
     for params in searches {
-        match fetch_json::<Vec<LrcLibItem>>(&client, "search", &params) {
+        match fetch_json::<Vec<LrcLibItem>>(client, "search", &params) {
             Fetch::RateLimited => break,
             Fetch::Found(items) if !items.is_empty() => {
                 let has_synced_hit = best_lrclib_with_mode(&items, query, MatchMode::Strict)
@@ -830,10 +832,11 @@ fn lookup_lrclib_scored(query: &TrackQuery) -> Option<ScoredLyrics> {
                 result: into_result(item, query, true),
             });
         }
-        if plain_fallback
-            .as_ref()
-            .is_none_or(|(prev_s, _)| score > *prev_s)
-        {
+        let replace_plain = match plain_fallback.as_ref() {
+            None => true,
+            Some((prev_s, _)) => score > *prev_s,
+        };
+        if replace_plain {
             plain_fallback = Some((score, item));
         }
     }
@@ -1014,7 +1017,10 @@ fn parse_lyricsplus_json(json: &serde_json::Value, query: &TrackQuery) -> Option
     let raw_lines = json
         .get("lyrics")
         .and_then(serde_json::Value::as_array)
-        .or_else(|| json.get("syncedLyrics").and_then(serde_json::Value::as_array))?;
+        .or_else(|| {
+            json.get("syncedLyrics")
+                .and_then(serde_json::Value::as_array)
+        })?;
 
     let mut lines: Vec<LyricLine> = Vec::with_capacity(raw_lines.len());
     for item in raw_lines {
@@ -1288,7 +1294,10 @@ fn lookup_kugou(query: &TrackQuery) -> Option<ScoredLyrics> {
         pairs.append_pair("client", "pc");
         pairs.append_pair("keyword", &keyword);
         if query.duration > 0.0 {
-            pairs.append_pair("duration", &format!("{}", (query.duration * 1000.0).round() as i64));
+            pairs.append_pair(
+                "duration",
+                &format!("{}", (query.duration * 1000.0).round() as i64),
+            );
         }
     }
 
@@ -2007,7 +2016,14 @@ mod tests {
         assert!(score_candidate("LONOWN", "addiction", 209.0, &q1) > 0.8);
 
         let q2 = query("Run Rabbit", "Mollie Elizabeth", 190.0);
-        assert!(score_candidate("Mollie Elizabeth", "Mollie Elizabeth - Run Rabbit (Official Audio)", 190.0, &q2) > 0.9);
+        assert!(
+            score_candidate(
+                "Mollie Elizabeth",
+                "Mollie Elizabeth - Run Rabbit (Official Audio)",
+                190.0,
+                &q2
+            ) > 0.9
+        );
     }
 
     #[test]
@@ -2017,7 +2033,10 @@ mod tests {
             r#"[{"trackName":"ты похож на кота","artistName":"zhanulka","duration":192.0,"syncedLyrics":"[00:05.00]Строчка 1\n[00:10.00]Строчка 2"}]"#,
         )
         .expect("items");
-        assert_eq!(score_candidate("zhanulka", "ты похож на кота", 192.0, &q), -1.0);
+        assert_eq!(
+            score_candidate("zhanulka", "ты похож на кота", 192.0, &q),
+            -1.0
+        );
         let best = best_candidate(items, &q).expect("relaxed fallback should match");
         assert!(best.synced_lyrics.is_some());
     }
@@ -2146,7 +2165,9 @@ mod tests {
             result: LyricsResult {
                 title: "addiction".to_string(),
                 artists: vec!["LONOWN".to_string(), "Asenssia".to_string()],
-                lines: Some(parse_lrc("[00:04.43]I'm shattered\n[00:07.51]In ruins shaped like you")),
+                lines: Some(parse_lrc(
+                    "[00:04.43]I'm shattered\n[00:07.51]In ruins shaped like you",
+                )),
                 lyrics: None,
             },
         };
@@ -2168,7 +2189,8 @@ mod tests {
         assert_eq!(normalize_target_lang("invalid lang!"), "ru");
 
         assert_eq!(
-            clean_translation_line("White shirt, now red", "Белая рубашка, теперь красная.").as_deref(),
+            clean_translation_line("White shirt, now red", "Белая рубашка, теперь красная.")
+                .as_deref(),
             Some("Белая рубашка, теперь красная")
         );
         assert_eq!(
@@ -2182,7 +2204,10 @@ mod tests {
     #[test]
     fn parses_batch_translate_payload() {
         let json = serde_json::json!([
-            [["Первая строка\n", "First line\n"], ["Вторая строка", "Second line"]],
+            [
+                ["Первая строка\n", "First line\n"],
+                ["Вторая строка", "Second line"]
+            ],
             null,
             "en"
         ]);

@@ -11,7 +11,7 @@ use webview2_com::{
 
 #[cfg(windows)]
 use windows::{
-    core::{GUID, HSTRING, Interface, PCWSTR},
+    core::{Interface, GUID, HSTRING, PCWSTR},
     Win32::{
         Foundation::{CloseHandle, PROPERTYKEY, RECT},
         System::{
@@ -356,7 +356,15 @@ pub fn force_show_window(window: &tauri::WebviewWindow) {
         // Recover if minimized state ever saved off-screen coordinates (e.g. -32000).
         let mut rect = RECT::default();
         if GetWindowRect(hwnd, &mut rect).is_ok() && (rect.left < -10000 || rect.top < -10000) {
-            let _ = SetWindowPos(hwnd, Some(HWND_TOP), 120, 80, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+            let _ = SetWindowPos(
+                hwnd,
+                Some(HWND_TOP),
+                120,
+                80,
+                0,
+                0,
+                SWP_NOSIZE | SWP_SHOWWINDOW,
+            );
         } else {
             let _ = SetWindowPos(
                 hwnd,

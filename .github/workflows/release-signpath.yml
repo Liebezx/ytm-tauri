@@ -102,13 +102,16 @@ jobs:
           }
 
       - name: Generate Tauri updater signatures (optional)
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY) -or [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) {
+            Write-Host 'TAURI_SIGNING_PRIVATE_KEY not configured; skipping updater signature generation.'
+            exit 0
+          }
           npm ci --ignore-scripts
           $setup = Get-ChildItem -Path 'signed-release' -Recurse -Filter '*-setup.exe' | Select-Object -First 1
           if ($setup) {
