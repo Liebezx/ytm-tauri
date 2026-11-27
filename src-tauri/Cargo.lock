@@ -5547,6 +5547,7 @@ dependencies = [
  "url",
  "webview2-com",
  "windows",
+ "windows-numerics",
  "winreg 0.56.0",
 ]
 

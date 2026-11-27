@@ -14,7 +14,7 @@
   function setVolume(value) {
     const volume = Math.max(0, Math.min(100, value));
     const player = document.querySelector("#movie_player");
-    const bar = document.querySelector("ytmusic-player-bar");
+    const bar = document.querySelector("ytmusic-player-bar, [slot='player-bar'], ytmusic-miniplayer");
     if (typeof player?.setVolume === "function") player.setVolume(volume);
     else if (typeof bar?.updateVolume === "function") bar.updateVolume(volume);
     else if (runtime.media()) runtime.media().volume = volume / 100;

@@ -362,4 +362,78 @@ test("lyrics effect falls back to fancy on unknown or corrupt effect string", ()
   assert.equal(context.document.documentElement.dataset.lyricsEffect, "fancy");
 });
 
+test("synced lyrics stylesheet wires cover-matched adaptive glow variables and preserves text selection", () => {
+  assert.match(source, /var\(--theme-lyrics-glow-core/);
+  assert.match(source, /var\(--theme-lyrics-glow-outer/);
+  assert.match(source, /var\(--theme-lyrics-glow-ambient/);
+  assert.match(source, /user-select:\s*text\s*!important/);
+  assert.match(source, /text-shadow:\s*none\s*!important/);
+  assert.doesNotMatch(source, /content-visibility:\s*auto/);
+  assert.doesNotMatch(source, /\.synced-line::before/);
+});
+
+test("synced lyrics uses unified switchless mode without rendering provider picker bar", () => {
+  assert.match(source, /const PROVIDERS = \["Unified"\]/);
+  assert.match(source, /function fetchUnified\(/);
+  assert.doesNotMatch(source, /pickerWrap\s*=\s*document\.createElement/);
+});
+
+test("synced lyrics regional auto-translation skips native language and renders subtle subtitle class", () => {
+  assert.match(source, /function detectTargetLanguage\(/);
+  assert.match(source, /function needsTranslation\(/);
+  assert.match(source, /\.lyrics-translation/);
+  assert.match(source, /user-select:\s*none\s*!important/);
+});
+
+test("synced lyrics batches and deduplicates translation lines while skipping native text", async () => {
+  const calls = [];
+  const { context, features } = createRuntime();
+  context.window.ytcfg = { get: (k) => (k === "HL" ? "ru" : "") };
+  context.window.__ytmFeatures.translate = async (target, lines) => {
+    calls.push({ target, lines: [...lines] });
+    return {
+      ok: true,
+      body: JSON.stringify({
+        translations: lines.map((line) => `перевод:${line}`),
+      }),
+    };
+  };
+  const plugin = features.get("synced_lyrics");
+  const target = context.document.createElement("div");
+
+  const lines = [];
+  for (let i = 0; i < 20; i++) {
+    lines.push(`Unique English line ${i}`);
+  }
+  lines.push("Unique English line 0");
+  lines.push("Русская строка без перевода");
+
+  plugin.renderPlain(target, lines.join("\n"));
+  await new Promise((r) => setTimeout(r, 25));
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].target, "ru");
+  assert.equal(calls[0].lines.length, 16);
+  assert.equal(calls[1].lines.length, 4);
+
+  const translatedNodes = target.children.filter((wrap) =>
+    wrap.children[0].children.some((child) => child.className === "lyrics-translation")
+  );
+  assert.equal(translatedNodes.length, 21);
+  const russianLineHasSub = target.children[21].children[0].children.some(
+    (child) => child.className === "lyrics-translation"
+  );
+  assert.equal(russianLineHasSub, false);
+});
+
+test("synced lyrics never mounts or leaks inside Up Next queue tab", () => {
+  assert.match(source, /function isLyricsTabSelected\(/);
+  assert.match(source, /function syncTabVisibility\(/);
+  assert.match(source, /data-ytm-lyrics-host/);
+  assert.match(source, /data-ytm-lyrics-tab-active/);
+  assert.doesNotMatch(source, /ytmusic-tab-renderer:nth-of-type\(2\)/);
+});
+
+
+
 

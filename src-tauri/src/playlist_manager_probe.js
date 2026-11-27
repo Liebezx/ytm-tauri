@@ -236,8 +236,8 @@
       #${BUTTON_ID}:hover { background:#ffffff25; }
       #${DIALOG_ID}, #${DIALOG_ID} * { box-sizing:border-box; }
       body.ytm-playlist-manager-open { overflow:hidden !important; }
-      #${DIALOG_ID} { position:fixed; inset:0; z-index:2147483000; display:grid; place-items:center; padding:24px; background:rgba(0,0,0,.65); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); color:#f1f1f1; font:400 14px/1.45 Roboto,Arial,sans-serif; color-scheme:dark; }
-      #${DIALOG_ID} .ytm-pm-card { width:min(1080px,100%); height:min(900px,calc(100dvh - 48px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid #ffffff25; border-radius:16px; background:var(--ytmusic-dialog-background-color,#181818); box-shadow:0 24px 80px #0009; }
+      #${DIALOG_ID} { position:fixed; inset:0; z-index:2147483000; display:grid; place-items:center; padding:calc(var(--liebe-tb-height, 34px) + 12px) 24px 16px; background:rgba(0,0,0,.65); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); color:#f1f1f1; font:400 14px/1.45 Roboto,Arial,sans-serif; color-scheme:dark; }
+      #${DIALOG_ID} .ytm-pm-card { width:min(1080px,100%); height:min(900px,calc(100dvh - var(--liebe-tb-height, 34px) - 28px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid #ffffff25; border-radius:16px; background:var(--ytmusic-dialog-background-color,#181818); box-shadow:0 24px 80px #0009; }
       #${DIALOG_ID} .ytm-pm-content { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
       #${DIALOG_ID} .ytm-pm-content > :not(.ytm-pm-list), #${DIALOG_ID} .ytm-pm-header, #${DIALOG_ID} .ytm-pm-footer { flex-shrink:0; }
       #${DIALOG_ID} .ytm-pm-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 24px 16px; }
@@ -1098,16 +1098,20 @@
   ensureButton();
   // coalesce mutation bursts
   let ensureScheduled = false;
+  const runEnsureWhenVisible = () => {
+    if (document.hidden) return;
+    ensureButton();
+  };
   const observer = new MutationObserver(() => {
-    if (ensureScheduled) return;
+    if (ensureScheduled || document.hidden) return;
     ensureScheduled = true;
     setTimeout(() => {
       ensureScheduled = false;
-      ensureButton();
-    }, 200);
+      runEnsureWhenVisible();
+    }, 350);
   });
   if (document.body) observer.observe(document.body, { childList: true, subtree: true });
-  setInterval(ensureButton, 1200);
+  setInterval(runEnsureWhenVisible, 3000);
   publicApi.openDialog = openDialog;
   publicApi.closeDialog = closeDialog;
 })();

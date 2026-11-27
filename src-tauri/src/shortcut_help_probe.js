@@ -32,7 +32,7 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-#${OVERLAY_ID} { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; background: rgba(0,0,0,.6); backdrop-filter: blur(10px); font: 14px var(--ytmx-font, system-ui, sans-serif); color: #fff; animation: ytmx-fade-in .16s ease; }
+#${OVERLAY_ID} { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; padding-top: var(--liebe-tb-height, 34px); box-sizing: border-box; background: rgba(0,0,0,.6); backdrop-filter: blur(10px); font: 14px var(--ytmx-font, system-ui, sans-serif); color: #fff; animation: ytmx-fade-in .16s ease; }
 #${OVERLAY_ID} .ytm-shortcut-panel { width: min(560px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 32px)); overflow: auto; padding: 24px 24px 20px; border: 1px solid var(--ytmx-border, rgba(255,255,255,.1)); border-radius: var(--ytmx-radius-lg, 16px); background: linear-gradient(160deg, var(--ytmx-surface-2, #242424), var(--ytmx-bg, #161616) 60%); box-shadow: var(--ytmx-shadow, 0 18px 70px rgba(0,0,0,.55)); animation: ytmx-pop-in .22s var(--ytmx-ease, ease); }
 #${OVERLAY_ID} h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
 #${OVERLAY_ID} .ytm-shortcut-hint { margin: 0 0 18px; color: var(--ytmx-text-3, #999); font-size: 12px; }
@@ -134,7 +134,7 @@
     if (event.shiftKey) {
       if (key === "i") return "open_devtools";
       if (key === "delete") return "reset_session";
-      if (key === "+" || code === "Equal") return "zoom_in";
+      if (key === "+" || code === "Equal" || code === "NumpadAdd") return "zoom_in";
       return null;
     }
     if (key === "r" || key === "f5") return "reload";
@@ -150,8 +150,12 @@
     const pending = window.__ytmFeatures?.triggerAction?.(action);
     if (!pending?.then) return;
     pending.then((response) => {
+      if (response?.settings && typeof window.__ytmFeatures?.configure === "function") {
+        window.__ytmFeatures.configure(response.settings);
+      }
       const zoom = Number(response?.settings?.zoom);
       if (ZOOM_ACTIONS.has(action) && Number.isFinite(zoom)) {
+        document.documentElement?.style?.setProperty?.("--ytm-zoom", String(zoom));
         window.__ytmUi?.toast?.(`Zoom ${Math.round(zoom * 100)}%`, { key: "zoom", duration: 1400 });
       }
     }, () => {});

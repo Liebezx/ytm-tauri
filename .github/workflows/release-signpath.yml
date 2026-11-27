@@ -1,0 +1,139 @@
+name: Release (SignPath Signed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and sign without publishing a GitHub release
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Unsigned Windows Artifacts
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: npm ci
+
+      - name: Run JS and Rust test suites
+        run: npm test
+
+      - name: Build Windows binaries and installers
+        shell: pwsh
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cfg = Join-Path $env:RUNNER_TEMP 'signpath-tauri.json'
+          @{
+            bundle = @{
+              createUpdaterArtifacts = $false
+            }
+          } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $cfg -Encoding UTF8
+
+          npx tauri build --config $cfg
+          if ($LASTEXITCODE -ne 0) { throw "tauri build failed with exit code $LASTEXITCODE" }
+
+          New-Item -ItemType Directory -Force -Path unsigned-release | Out-Null
+          Copy-Item 'src-tauri/target/release/yt-music-tauri.exe' 'unsigned-release/'
+          Get-ChildItem 'src-tauri/target/release/bundle/nsis' -Filter '*.exe' | Copy-Item -Destination 'unsigned-release/'
+          Get-ChildItem 'src-tauri/target/release/bundle/msi' -Filter '*.msi' | Copy-Item -Destination 'unsigned-release/'
+          Get-ChildItem 'unsigned-release' | Format-Table Name, Length -AutoSize
+
+      - name: Upload unsigned artifact for SignPath
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-release
+          path: unsigned-release/
+          retention-days: 3
+
+  sign:
+    name: Sign via SignPath Foundation and Publish
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID || secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'ytm-tauri' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-release
+          parameters: |
+            version: ${{ github.ref_name }}
+
+      - name: Verify Authenticode signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path 'signed-release' -Recurse -File | Where-Object { $_.Extension -in @('.exe', '.msi') }
+          if (-not $files) { throw 'No signed EXE or MSI files returned by SignPath.' }
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            Write-Host "$($file.Name): $($sig.Status) ($($sig.SignerCertificate.Subject))"
+            if ($sig.Status -ne 'Valid') {
+              throw "Invalid Authenticode signature on $($file.FullName): $($sig.Status)"
+            }
+          }
+
+      - name: Generate Tauri updater signatures (optional)
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci --ignore-scripts
+          $setup = Get-ChildItem -Path 'signed-release' -Recurse -Filter '*-setup.exe' | Select-Object -First 1
+          if ($setup) {
+            npx tauri signer sign $setup.FullName
+          }
+
+      - name: Resolve release tag
+        if: ${{ !inputs.dry_run }}
+        id: rel
+        shell: pwsh
+        run: |
+          $ver = (Get-Content -Raw -LiteralPath package.json | ConvertFrom-Json).version
+          $tag = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}' } else { "v$ver" }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish draft GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          draft: true
+          name: YouTube Music ${{ steps.rel.outputs.tag }} (Signed)
+          body: |
+            Windows installers signed via SignPath Foundation (`Code signing policy` in `CODE_SIGNING_POLICY.md`).
+          files: |
+            signed-release/**/*

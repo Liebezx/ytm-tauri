@@ -110,6 +110,102 @@ test("late feature responses cannot release the active request slot", async () =
   await Promise.all([first, second]);
 });
 
+test("player bar track metadata allows text selection without default I-beam cursor and suppresses click after drag selection", () => {
+  let winHandlers = {};
+  let docHandlers = {};
+  const injectedStyles = [];
+  let selectedText = "Milky";
+  const trackNode = {
+    closest(selector) {
+      return selector.includes(".content-info-wrapper") || selector.includes("ytMusicMiniPlayerTrackInfo") ? {} : null;
+    },
+  };
+  const context = {
+    clearTimeout() {},
+    console,
+    Date,
+    document: {
+      addEventListener(event, handler) {
+        docHandlers[event] = handler;
+      },
+      documentElement: {
+        appendChild(node) {
+          injectedStyles.push(node);
+        },
+      },
+      head: null,
+      querySelector() {
+        return null;
+      },
+      createElement() {
+        return { id: "", textContent: "", appendChild() {} };
+      },
+      getElementById() {
+        return null;
+      },
+      readyState: "complete",
+      title: "YouTube Music",
+    },
+    getSelection() {
+      return selectedText;
+    },
+    setTimeout() {
+      return 1;
+    },
+    addEventListener(event, handler) {
+      winHandlers[event] = handler;
+    },
+  };
+  context.window = context;
+  vm.runInNewContext(source, context);
+
+  let ctxPrevented = false;
+  let ctxStopped = false;
+  winHandlers.contextmenu({
+    target: trackNode,
+    preventDefault() { ctxPrevented = true; },
+    stopPropagation() { ctxStopped = true; },
+    stopImmediatePropagation() {},
+  });
+  assert.equal(ctxPrevented, false);
+  assert.equal(ctxStopped, true);
+
+  const css = injectedStyles.find((node) => node.id === "ytm-guard-style")?.textContent || "";
+  assert.match(css, /ytmusic-player-bar \.content-info-wrapper[\s\S]*user-select:\s*text !important/);
+  assert.match(css, /cursor:\s*default !important/);
+  assert.doesNotMatch(css, /content-info-wrapper[\s\S]*cursor:\s*text/);
+
+  let selectPrevented = false;
+  docHandlers.selectstart({ target: trackNode, preventDefault() { selectPrevented = true; } });
+  assert.equal(selectPrevented, false);
+
+  docHandlers.mousedown({ button: 0, clientX: 10, clientY: 10, target: trackNode });
+  docHandlers.mousemove({ clientX: 40, clientY: 10 });
+  docHandlers.mouseup();
+
+  let clickPrevented = false;
+  let clickStopped = false;
+  docHandlers.click({
+    target: trackNode,
+    preventDefault() { clickPrevented = true; },
+    stopPropagation() { clickStopped = true; },
+    stopImmediatePropagation() {},
+  });
+  assert.equal(clickPrevented, true);
+  assert.equal(clickStopped, true);
+
+  selectedText = "";
+  let plainClickPrevented = false;
+  docHandlers.mousedown({ button: 0, clientX: 10, clientY: 10, target: trackNode });
+  docHandlers.mouseup();
+  docHandlers.click({
+    target: trackNode,
+    preventDefault() { plainClickPrevented = true; },
+    stopPropagation() {},
+  });
+  assert.equal(plainClickPrevented, false);
+});
+
 test("rejected setting writes restore the previous runtime value", async () => {
   const context = createRuntime();
   context.window.__ytmFeatures.configure({ synced_lyrics: true });
@@ -202,4 +298,44 @@ test("acknowledged slow requests free the bridge for queued settings", async () 
   features.receive(settingRequest.id, { ok: true });
   await Promise.all([lyrics, setting]);
   assert.equal(context.document.title, "YouTube Music");
+});
+
+test("translate emits translate request with target and lines", async () => {
+  const context = createRuntime();
+  const pending = context.window.__ytmFeatures.translate("ru", ["First", "Second"]);
+  const request = JSON.parse(context.document.title.slice("YTMFEATURE:".length));
+  assert.equal(request.kind, "translate");
+  assert.equal(request.value.target, "ru");
+  assert.deepEqual(request.value.lines, ["First", "Second"]);
+  context.window.__ytmFeatures.receive(request.id, {
+    ok: true,
+    body: JSON.stringify({ translations: ["Первая", "Вторая"] }),
+  });
+  const res = await pending;
+  assert.deepEqual(JSON.parse(res.body).translations, ["Первая", "Вторая"]);
+});
+
+test("lyrics requests preempt queued background translate requests", async () => {
+  const context = createRuntime();
+  const features = context.window.__ytmFeatures;
+  const activeReq = features.request("https://lrclib.net/api/search");
+  const req1 = JSON.parse(context.document.title.slice("YTMFEATURE:".length));
+
+  const tr = features.translate("ru", ["Line 1"]);
+  const lyr = features.lyrics({ title: "Partners in Crime", artist: "Set It Off", duration: 212 });
+
+  features.ack(req1.id);
+  context.runImmediateTimers();
+  const nextReq = JSON.parse(context.document.title.slice("YTMFEATURE:".length));
+  assert.equal(nextReq.kind, "lyrics");
+
+  features.ack(nextReq.id);
+  context.runImmediateTimers();
+  const afterReq = JSON.parse(context.document.title.slice("YTMFEATURE:".length));
+  assert.equal(afterReq.kind, "translate");
+
+  features.receive(req1.id, { ok: true });
+  features.receive(nextReq.id, { ok: true, body: "{}" });
+  features.receive(afterReq.id, { ok: true, body: JSON.stringify({ translations: ["Строка 1"] }) });
+  await Promise.all([activeReq, tr, lyr]);
 });

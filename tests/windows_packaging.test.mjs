@@ -48,7 +48,7 @@ test("signed in-app updater is configured and owned by Rust", () => {
   const updater = tauriConfig.plugins.updater;
   assert.equal(tauriConfig.bundle.createUpdaterArtifacts, true);
   assert.deepEqual(updater.endpoints, [
-    "https://github.com/xzelleiv/ytm-tauri/releases/latest/download/latest.json",
+    "https://github.com/Liebezx/ytm-tauri/releases/latest/download/latest.json",
   ]);
   assert.equal(updater.windows.installMode, "passive");
   assert.match(

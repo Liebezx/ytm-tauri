@@ -1,9 +1,31 @@
 #[cfg(windows)]
+use webview2_com::{
+    Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL, COREWEBVIEW2_PROCESS_FAILED_KIND,
+        COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED,
+        COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,
+    },
+    ProcessFailedEventHandler,
+};
+
+#[cfg(windows)]
 use windows::{
-    core::{GUID, HSTRING, PCWSTR},
+    core::{GUID, HSTRING, Interface, PCWSTR},
     Win32::{
-        Foundation::PROPERTYKEY,
-        System::Com::StructuredStorage::PROPVARIANT,
+        Foundation::{CloseHandle, PROPERTYKEY, RECT},
+        System::{
+            Com::StructuredStorage::PROPVARIANT,
+            Diagnostics::ToolHelp::{
+                CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+                TH32CS_SNAPPROCESS,
+            },
+            ProcessStatus::EmptyWorkingSet,
+            Threading::{
+                AttachThreadInput, GetCurrentProcess, GetCurrentProcessId, GetCurrentThreadId,
+                OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_SET_QUOTA,
+            },
+        },
         UI::{
             Shell::{
                 PropertiesSystem::{
@@ -12,8 +34,11 @@ use windows::{
                 ShellExecuteW,
             },
             WindowsAndMessaging::{
-                MessageBoxW, IDYES, MB_ICONERROR, MB_ICONINFORMATION, MB_ICONQUESTION, MB_OK,
-                MB_YESNO, SW_SHOWNORMAL,
+                AllowSetForegroundWindow, BringWindowToTop, GetForegroundWindow, GetWindowRect,
+                GetWindowThreadProcessId, IsIconic, MessageBoxW, SetForegroundWindow, SetWindowPos,
+                ShowWindow, ASFW_ANY, HWND_TOP, IDYES, MB_ICONERROR, MB_ICONINFORMATION,
+                MB_ICONQUESTION, MB_OK, MB_YESNO, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+                SW_RESTORE, SW_SHOW, SW_SHOWNORMAL,
             },
         },
     },
@@ -173,6 +198,219 @@ pub fn set_window_app_identity(window: &tauri::WebviewWindow) -> Result<(), Stri
         store.Commit().map_err(|error| error.to_string())
     }
 }
+
+#[cfg(windows)]
+pub fn set_memory_usage_low(webview: tauri::webview::PlatformWebview, low: bool) {
+    unsafe {
+        let Ok(core_webview) = webview.controller().CoreWebView2() else {
+            return;
+        };
+        if let Ok(wv19) = core_webview.cast::<ICoreWebView2_19>() {
+            let level = if low {
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+            } else {
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+            };
+            let _ = wv19.SetMemoryUsageTargetLevel(level);
+        }
+    }
+}
+
+#[cfg(windows)]
+pub fn install_process_recovery(webview: tauri::webview::PlatformWebview) {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static LAST_RELOAD_SECS: AtomicU64 = AtomicU64::new(0);
+
+    unsafe {
+        let Ok(core_webview) = webview.controller().CoreWebView2() else {
+            return;
+        };
+        let handler = ProcessFailedEventHandler::create(Box::new(move |sender, args| {
+            let Some(args) = args else {
+                return Ok(());
+            };
+            let mut kind = COREWEBVIEW2_PROCESS_FAILED_KIND::default();
+            if args.ProcessFailedKind(&mut kind).is_ok()
+                && (kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
+                    || kind == COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED)
+            {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let prev = LAST_RELOAD_SECS.load(Ordering::Relaxed);
+                if now.saturating_sub(prev) >= 15
+                    && LAST_RELOAD_SECS
+                        .compare_exchange(prev, now, Ordering::SeqCst, Ordering::Relaxed)
+                        .is_ok()
+                {
+                    if let Some(wv) = sender {
+                        let _ = wv.Reload();
+                    }
+                }
+            }
+            Ok(())
+        }));
+        let mut token = 0;
+        let _ = core_webview.add_ProcessFailed(&handler, &mut token);
+    }
+}
+
+#[cfg(windows)]
+pub fn trim_working_sets() {
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static TRIM_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+    static LAST_TRIM_MS: AtomicU64 = AtomicU64::new(0);
+
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let prev_ms = LAST_TRIM_MS.load(Ordering::Relaxed);
+    if now_ms.saturating_sub(prev_ms) < 800 {
+        return;
+    }
+    if TRIM_IN_FLIGHT
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_err()
+    {
+        return;
+    }
+    LAST_TRIM_MS.store(now_ms, Ordering::Relaxed);
+
+    unsafe {
+        let root_pid = GetCurrentProcessId();
+        let _ = EmptyWorkingSet(GetCurrentProcess());
+
+        if let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+            if !snapshot.is_invalid() {
+                let mut pairs: Vec<(u32, u32)> = Vec::with_capacity(128);
+                let mut entry = PROCESSENTRY32W {
+                    dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                    ..Default::default()
+                };
+                if Process32FirstW(snapshot, &mut entry).is_ok() {
+                    loop {
+                        pairs.push((entry.th32ParentProcessID, entry.th32ProcessID));
+                        if Process32NextW(snapshot, &mut entry).is_err() {
+                            break;
+                        }
+                    }
+                }
+                let _ = CloseHandle(snapshot);
+
+                let mut tree_pids: Vec<u32> = Vec::with_capacity(16);
+                tree_pids.push(root_pid);
+                let mut idx = 0;
+                while idx < tree_pids.len() {
+                    let parent = tree_pids[idx];
+                    for &(ppid, pid) in &pairs {
+                        if ppid == parent && !tree_pids.contains(&pid) {
+                            tree_pids.push(pid);
+                        }
+                    }
+                    idx += 1;
+                }
+
+                for &pid in tree_pids.iter().skip(1) {
+                    if let Ok(handle) =
+                        OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, false, pid)
+                    {
+                        if !handle.is_invalid() {
+                            let _ = EmptyWorkingSet(handle);
+                            let _ = CloseHandle(handle);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    TRIM_IN_FLIGHT.store(false, Ordering::Release);
+}
+
+#[cfg(windows)]
+pub fn allow_foreground_any() {
+    unsafe {
+        let _ = AllowSetForegroundWindow(ASFW_ANY);
+    }
+}
+
+#[cfg(windows)]
+pub fn force_show_window(window: &tauri::WebviewWindow) {
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    unsafe {
+        let cmd = if IsIconic(hwnd).as_bool() {
+            SW_RESTORE
+        } else {
+            SW_SHOW
+        };
+        let _ = ShowWindow(hwnd, cmd);
+
+        // Recover if minimized state ever saved off-screen coordinates (e.g. -32000).
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_ok() && (rect.left < -10000 || rect.top < -10000) {
+            let _ = SetWindowPos(hwnd, Some(HWND_TOP), 120, 80, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+        } else {
+            let _ = SetWindowPos(
+                hwnd,
+                Some(HWND_TOP),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+            );
+        }
+
+        let fg = GetForegroundWindow();
+        if !fg.is_invalid() && fg != hwnd {
+            let fg_tid = GetWindowThreadProcessId(fg, None);
+            let cur_tid = GetCurrentThreadId();
+            if fg_tid != 0 && fg_tid != cur_tid {
+                let attached = AttachThreadInput(cur_tid, fg_tid, true).as_bool();
+                let _ = SetForegroundWindow(hwnd);
+                let _ = BringWindowToTop(hwnd);
+                if attached {
+                    let _ = AttachThreadInput(cur_tid, fg_tid, false);
+                }
+                return;
+            }
+        }
+
+        let _ = SetForegroundWindow(hwnd);
+        let _ = BringWindowToTop(hwnd);
+    }
+}
+
+#[cfg(not(windows))]
+pub fn allow_foreground_any() {}
+
+#[cfg(not(windows))]
+pub fn force_show_window(_window: &tauri::WebviewWindow) {}
+
+#[cfg(windows)]
+pub fn trim_working_sets_async() {
+    std::thread::spawn(trim_working_sets);
+}
+
+#[cfg(not(windows))]
+pub fn trim_working_sets() {}
+
+#[cfg(not(windows))]
+pub fn trim_working_sets_async() {}
+
+#[cfg(not(windows))]
+pub fn install_process_recovery(_webview: tauri::webview::PlatformWebview) {}
+
+#[cfg(not(windows))]
+pub fn set_memory_usage_low(_webview: tauri::webview::PlatformWebview, _low: bool) {}
 
 #[cfg(not(windows))]
 pub fn register_app_identity() -> std::io::Result<()> {

@@ -132,19 +132,19 @@ impl PresenceController {
 
     pub fn status(&self) -> String {
         let Ok(status) = self.status.lock() else {
-            return "Status unavailable".to_string();
+            return "Статус недоступен".to_string();
         };
 
         if !status.enabled {
-            "Disabled".to_string()
+            "Выключено".to_string()
         } else if !status.client_configured {
-            "Unavailable: Discord application ID is missing".to_string()
+            "Недоступно: не задан Discord Client ID".to_string()
         } else if !status.connected {
-            "Enabled: waiting for Discord".to_string()
+            "Включено: ожидание Discord".to_string()
         } else if status.activity_active {
-            "Connected: activity published".to_string()
+            "Подключено: трек отображается".to_string()
         } else {
-            "Connected: idle".to_string()
+            "Подключено: ожидание трека".to_string()
         }
     }
 }
@@ -718,6 +718,6 @@ mod tests {
     fn disabled_status_is_reported() {
         let controller = PresenceController::new(false, false);
 
-        assert_eq!(controller.status(), "Disabled");
+        assert_eq!(controller.status(), "Выключено");
     }
 }

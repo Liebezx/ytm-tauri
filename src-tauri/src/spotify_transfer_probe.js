@@ -196,6 +196,8 @@
       .ytm-spot-modal-backdrop {
         position: fixed;
         inset: 0;
+        padding-top: var(--liebe-tb-height, 34px);
+        box-sizing: border-box;
         background: rgba(0, 0, 0, 0.75);
         backdrop-filter: blur(12px);
         z-index: 999999;
@@ -554,7 +556,18 @@
     tryInsert();
     if (typeof MutationObserver !== "function" || !document.documentElement) return;
     let insertScheduled = false;
+    let observingNavOnly = false;
+    let observer = null;
     const scheduleInsert = () => {
+      if (!observingNavOnly && observer) {
+        const navEl = document.querySelector("ytmusic-nav-bar");
+        if (navEl) {
+          observingNavOnly = true;
+          observer.disconnect();
+          observer.observe(navEl, { childList: true, subtree: true });
+        }
+      }
+      if (document.getElementById("ytm-spotify-transfer-btn")) return;
       if (insertScheduled) return;
       insertScheduled = true;
       const schedule = window.requestAnimationFrame || ((callback) => setTimeout(callback, 16));
@@ -563,8 +576,11 @@
         tryInsert();
       });
     };
-    const observer = new MutationObserver(scheduleInsert);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    const nav = document.querySelector("ytmusic-nav-bar");
+    observingNavOnly = Boolean(nav);
+    observer = new MutationObserver(scheduleInsert);
+    observer.observe(nav || document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("yt-navigate-finish", scheduleInsert, true);
   }
 
   function createModal() {

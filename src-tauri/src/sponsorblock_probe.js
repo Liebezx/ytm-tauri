@@ -49,7 +49,7 @@
         .filter((seg) => Array.isArray(seg) && seg.length === 2 && Number.isFinite(seg[0]) && Number.isFinite(seg[1]))
         .sort((a, b) => a[0] - b[0]);
 
-      if (segmentCache.size >= 100) {
+      if (segmentCache.size >= 20) {
         const oldest = segmentCache.keys().next().value;
         segmentCache.delete(oldest);
       }

@@ -8,7 +8,7 @@
 
   function skipIfDisliked(button) {
     if (button?.getAttribute("like-status") !== "DISLIKE") return;
-    document.querySelector("yt-icon-button.next-button, ytmusic-player-bar #next-button")?.click();
+    document.querySelector("yt-icon-button.next-button, ytmusic-player-bar #next-button, [slot='player-bar'] .next-button, [slot='player-bar'] #next-button, ytmusic-miniplayer [aria-label^='Next']")?.click();
   }
 
   function attach() {

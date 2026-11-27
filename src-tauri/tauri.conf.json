@@ -52,7 +52,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDRDA5QzYwMzFCQTRDNUEKUldSYVRMb3hZSnpRL0g0UEI3b1Iybm9aSXVqbUxWQkpjZVdqQVZCSmwzUlhaUCtuRGczTFd6N3cK",
       "endpoints": [
-        "https://github.com/xzelleiv/ytm-tauri/releases/latest/download/latest.json"
+        "https://github.com/Liebezx/ytm-tauri/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

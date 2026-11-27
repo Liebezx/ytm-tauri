@@ -35,7 +35,7 @@ impl Default for UpdateStatus {
             revision: 0,
             stage: "idle".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            message: "Check for a newer version of YouTube Music.".into(),
+            message: "Проверьте наличие новой версии YouTube Music.".into(),
             downloaded: 0,
             total: None,
         }
@@ -88,8 +88,8 @@ pub fn check(app: &AppHandle, settings: &SharedSettings, mode: CheckMode) {
     {
         if mode == CheckMode::Manual {
             platform::info(
-                "YouTube Music Update",
-                "An update check is already in progress.",
+                "Обновление YouTube Music",
+                "Проверка обновлений уже выполняется.",
             );
         }
         return;
@@ -120,7 +120,7 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
         app,
         "checking",
         env!("CARGO_PKG_VERSION"),
-        "Checking for updates…",
+        "Проверка обновлений…",
         0,
         None,
     );
@@ -135,7 +135,7 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
             report_error(
                 app,
                 mode,
-                &format!("Could not initialize the updater: {error}"),
+                &format!("Не удалось инициализировать модуль обновлений: {error}"),
             );
             return;
         }
@@ -150,7 +150,7 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                     app,
                     "available",
                     &version,
-                    "An update is available when you are ready to install it.",
+                    "Доступно обновление — можно установить когда будет удобно.",
                     0,
                     None,
                 );
@@ -165,14 +165,14 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                 app,
                 "available",
                 &version,
-                "An update is available. Confirm when you are ready to install it.",
+                "Доступно обновление. Подтвердите установку.",
                 0,
                 None,
             );
             let install = platform::confirm(
-                "YouTube Music Update",
+                "Обновление YouTube Music",
                 &format!(
-                    "Version {version} is available.\n\nDownload the signed update, install it, and restart YouTube Music now?"
+                    "Доступна новая версия {version}.\n\nСкачать обновление, установить его и перезапустить YouTube Music сейчас?"
                 ),
             );
             if !install {
@@ -182,11 +182,11 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
             let _ = app
                 .notification()
                 .builder()
-                .title("Updating YouTube Music")
-                .body(format!("Downloading signed version {version}."))
+                .title("Обновление YouTube Music")
+                .body(format!("Загрузка версии {version}…"))
                 .show();
 
-            publish_status(app, "downloading", &version, "Downloading update…", 0, None);
+            publish_status(app, "downloading", &version, "Загрузка обновления…", 0, None);
             let mut downloaded = 0u64;
             let mut last_progress = Instant::now();
             if let Err(error) = update
@@ -200,7 +200,7 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                                 app,
                                 "downloading",
                                 &version,
-                                "Downloading update…",
+                                "Загрузка обновления…",
                                 downloaded,
                                 total,
                             );
@@ -212,7 +212,7 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                             app,
                             "installing",
                             &version,
-                            "Verifying and installing update. The app will close to finish.",
+                            "Проверка и установка обновления. Приложение закроется для завершения.",
                             0,
                             None,
                         );
@@ -224,13 +224,13 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                     app,
                     "error",
                     &version,
-                    "The update could not be installed. Check your connection and try again.",
+                    "Не удалось установить обновление. Проверьте подключение и попробуйте снова.",
                     0,
                     None,
                 );
                 platform::error(
-                    "YouTube Music Update",
-                    &format!("The signed update could not be installed: {error}"),
+                    "Обновление YouTube Music",
+                    &format!("Не удалось установить обновление: {error}"),
                 );
             }
         }
@@ -239,18 +239,18 @@ async fn run_check(app: &AppHandle, settings_handle: &SharedSettings, mode: Chec
                 app,
                 "current",
                 env!("CARGO_PKG_VERSION"),
-                "You are using the latest version.",
+                "У вас установлена последняя версия.",
                 0,
                 None,
             );
             if mode == CheckMode::Manual {
                 platform::info(
-                    "YouTube Music Update",
-                    &format!("Version {} is up to date.", env!("CARGO_PKG_VERSION")),
+                    "Обновление YouTube Music",
+                    &format!("Установлена актуальная версия {}.", env!("CARGO_PKG_VERSION")),
                 );
             }
         }
-        Err(error) => report_error(app, mode, &format!("Could not check for updates: {error}")),
+        Err(error) => report_error(app, mode, &format!("Не удалось проверить обновления: {error}")),
     }
 }
 
@@ -259,12 +259,12 @@ fn report_error(app: &AppHandle, mode: CheckMode, message: &str) {
         app,
         "error",
         env!("CARGO_PKG_VERSION"),
-        "Could not check for updates. Check your connection and try again.",
+        "Не удалось проверить обновления. Проверьте подключение и повторите.",
         0,
         None,
     );
     if mode == CheckMode::Manual {
-        platform::error("YouTube Music Update", message);
+        platform::error("Обновление YouTube Music", message);
     }
 }
 

@@ -34,19 +34,19 @@
     } catch {}
   }
 
-  let updateStatus = { revision: -1, stage: "idle", version: APP_VERSION, message: "Check for a newer version of YouTube Music.", downloaded: 0, total: null };
+  let updateStatus = { revision: -1, stage: "idle", version: APP_VERSION, message: "Проверьте наличие новой версии YouTube Music.", downloaded: 0, total: null };
 
   function renderUpdateStatus() {
     const card = document.getElementById("ytm-update-card");
     if (!card) return;
     const busy = ["checking", "downloading", "installing"].includes(updateStatus.stage);
-    card.querySelector("[data-update=version]").textContent = `${updateStatus.stage === "available" || updateStatus.stage === "downloading" || updateStatus.stage === "installing" ? "Update" : "Version"} ${updateStatus.version}`;
+    card.querySelector("[data-update=version]").textContent = `${updateStatus.stage === "available" || updateStatus.stage === "downloading" || updateStatus.stage === "installing" ? "Обновление" : "Версия"} ${updateStatus.version}`;
     const message = card.querySelector("[data-update=message]");
     message.textContent = updateStatus.message;
     message.style.color = updateStatus.stage === "error" ? "#ff8a80" : "";
     const button = card.querySelector("button");
     button.disabled = busy;
-    button.textContent = { checking: "Checking…", downloading: "Downloading…", installing: "Installing…", available: "Download & install", error: "Try again" }[updateStatus.stage] || "Check now";
+    button.textContent = { checking: "Проверка…", downloading: "Загрузка…", installing: "Установка…", available: "Скачать и установить", error: "Повторить" }[updateStatus.stage] || "Проверить";
     const progress = card.querySelector("progress");
     progress.hidden = !["downloading", "installing"].includes(updateStatus.stage);
     const total = Number(updateStatus.total);
@@ -55,7 +55,7 @@
     else progress.removeAttribute("value");
     const detail = card.querySelector("[data-update=bytes]");
     detail.textContent = updateStatus.stage === "downloading" && downloaded > 0
-      ? `${(downloaded / 1048576).toFixed(1)} MB${total > 0 ? ` of ${(total / 1048576).toFixed(1)} MB · ${Math.min(100, Math.floor(downloaded / total * 100))}%` : " downloaded"}` : "";
+      ? `${(downloaded / 1048576).toFixed(1)} МБ${total > 0 ? ` из ${(total / 1048576).toFixed(1)} МБ · ${Math.min(100, Math.floor(downloaded / total * 100))}%` : " загружено"}` : "";
   }
 
   window.__ytmUpdateStatus = {
@@ -250,8 +250,9 @@
     .ytm-modal-box {
       width: 100%;
       max-width: 1040px;
-      height: 84vh;
+      height: min(84vh, calc(100vh - var(--liebe-tb-height, 34px) - 24px));
       max-height: 820px;
+      margin-top: var(--liebe-tb-height, 34px);
       background: #121212;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
@@ -362,9 +363,10 @@
       outline: 2px solid #ff3b5c;
       outline-offset: 2px;
     }
-    @media (max-width: 760px) {
+    @media (max-width: 820px) {
       .ytm-modal-tabs {
-        width: 64px;
+        width: 56px;
+        padding: 10px 6px;
       }
       .ytm-tab-button {
         font-size: 0;
@@ -374,6 +376,24 @@
       .ytm-modal-heading span,
       .ytm-modal-search {
         display: none;
+      }
+      .ytm-modal-main {
+        padding: 16px 18px;
+      }
+    }
+    @media (max-height: 580px) {
+      #${MODAL_ID} {
+        padding: 10px 14px;
+      }
+      .ytm-modal-box {
+        height: calc(100vh - var(--liebe-tb-height, 34px) - 16px);
+      }
+      .ytm-modal-topbar {
+        height: 48px;
+        padding: 0 16px;
+      }
+      .ytm-modal-main {
+        padding: 14px 18px;
       }
     }
     .ytm-modal-close {
@@ -398,6 +418,7 @@
     .ytm-modal-body {
       display: flex;
       flex: 1;
+      min-height: 0;
       overflow: hidden;
     }
     .ytm-modal-tabs {
@@ -409,6 +430,7 @@
       flex-direction: column;
       gap: 4px;
       background: rgba(0, 0, 0, 0.15);
+      overflow-y: auto;
     }
     .ytm-tab-button {
       display: flex;
@@ -651,22 +673,26 @@
   }
 
   const ACTION_TOASTS = {
-    clear_cache: ["Cache cleared, reloading…", "success"],
-    check_updates: ["Checking for updates…", "info"],
+    clear_cache: ["Кэш очищен, перезагрузка…", "success"],
+    check_updates: ["Проверка обновлений…", "info"],
   };
 
   function triggerAction(action) {
     const pending = window.__ytmFeatures?.triggerAction?.(action);
     if (!pending?.then) return;
     pending.then((response) => {
+      if (response?.settings && typeof window.__ytmFeatures?.configure === "function") {
+        window.__ytmFeatures.configure(response.settings);
+      }
       const zoom = Number(response?.settings?.zoom);
       if (action.startsWith("zoom_") && Number.isFinite(zoom)) {
-        window.__ytmUi?.toast?.(`Zoom ${Math.round(zoom * 100)}%`, { key: "zoom", duration: 1400 });
+        document.documentElement?.style?.setProperty?.("--ytm-zoom", String(zoom));
+        window.__ytmUi?.toast?.(`Масштаб ${Math.round(zoom * 100)}%`, { key: "zoom", duration: 1400 });
       } else if (ACTION_TOASTS[action]) {
         window.__ytmUi?.toast?.(ACTION_TOASTS[action][0], { kind: ACTION_TOASTS[action][1], key: action });
       }
     }, (error) => {
-      window.__ytmUi?.toast?.(String(error?.message || "Action failed"), { kind: "error", key: action });
+      window.__ytmUi?.toast?.(String(error?.message || "Ошибка выполнения действия"), { kind: "error", key: action });
     });
   }
 
@@ -711,26 +737,26 @@
 
     const title = document.createElement("div");
     title.style.cssText = "font-size: 16px; font-weight: 600; color: #fff;";
-    title.textContent = "Restart Required";
+    title.textContent = "Требуется перезапуск";
 
     const msg = document.createElement("div");
     msg.style.cssText = "font-size: 14px; color: rgba(255, 255, 255, 0.8); line-height: 1.5;";
     msg.textContent = isTurnedOn
-      ? "This feature requires restart after being turned on"
-      : "This feature requires restart after being turned off";
+      ? "Для применения этой функции после включения нужно перезапустить приложение"
+      : "Для применения этой функции после отключения нужно перезапустить приложение";
 
     const actions = document.createElement("div");
     actions.style.cssText = "display: flex; justify-content: center; gap: 12px; margin-top: 8px;";
 
     const cancelBtn = document.createElement("button");
     cancelBtn.className = "ytm-action-btn";
-    cancelBtn.textContent = "Later";
+    cancelBtn.textContent = "Позже";
     cancelBtn.addEventListener("click", () => overlay.remove());
 
     const okBtn = document.createElement("button");
     okBtn.className = "ytm-action-btn ytm-action-btn-primary";
     okBtn.style.cssText = "min-width: 80px;";
-    okBtn.textContent = "Okay";
+    okBtn.textContent = "Закрыть";
     okBtn.addEventListener("click", () => {
       triggerAction("force_close");
     });
@@ -826,13 +852,13 @@
 
     const titleBox = document.createElement("div");
     setHTML(titleBox, `
-      <div style="font-size:13px;font-weight:600;color:#fff;">10-Band Graphic Equalizer</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.5);">Hardware-accelerated biquad frequency filters with anti-clipping limiter.</div>
+      <div style="font-size:13px;font-weight:600;color:#fff;">10-полосный графический эквалайзер</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);">Аппаратные фильтры частот с ограничителем перегрузки (anti-clipping).</div>
     `);
 
     const resetBtn = document.createElement("button");
     resetBtn.className = "ytm-action-btn";
-    resetBtn.textContent = "Reset to Flat";
+    resetBtn.textContent = "Сбросить в 0";
     resetBtn.style.cssText = "padding:4px 10px;font-size:11px;height:auto;";
 
     header.appendChild(titleBox);
@@ -849,7 +875,7 @@
       gains.forEach((gain, idx) => {
         if (sliderEls[idx]) sliderEls[idx].value = String(gain);
         if (valEls[idx]) {
-          valEls[idx].textContent = gain > 0 ? `+${gain}dB` : `${gain}dB`;
+          valEls[idx].textContent = gain > 0 ? `+${gain}дБ` : `${gain}дБ`;
         }
       });
     }
@@ -861,7 +887,7 @@
       const valLabel = document.createElement("div");
       valLabel.className = "ytm-eq-val";
       const g = initialGains[idx] || 0;
-      valLabel.textContent = g > 0 ? `+${g}dB` : `${g}dB`;
+      valLabel.textContent = g > 0 ? `+${g}дБ` : `${g}дБ`;
       valEls.push(valLabel);
 
       const slider = document.createElement("input");
@@ -875,7 +901,7 @@
 
       slider.addEventListener("input", (e) => {
         const val = parseFloat(e.target.value) || 0;
-        valLabel.textContent = val > 0 ? `+${val}dB` : `${val}dB`;
+        valLabel.textContent = val > 0 ? `+${val}дБ` : `${val}дБ`;
 
         const currentGains = sliderEls.map((s) => parseFloat(s.value) || 0);
         if (window.__ytmFeatures?.equalizer?.applyGains) {
@@ -929,43 +955,43 @@
     request.then((response) => {
       const status = JSON.parse(response?.body || "{}");
       const text = String(status.discord || "");
-      target.textContent = text || "Status unavailable";
-      target.dataset.state = /^Connected/.test(text) ? "ok" : /^Disabled/.test(text) ? "off" : /^Unavailable/.test(text) ? "error" : "pending";
+      target.textContent = text || "Статус недоступен";
+      target.dataset.state = /^(Connected|Подключено)/.test(text) ? "ok" : /^(Disabled|Выключено)/.test(text) ? "off" : /^(Unavailable|Недоступно)/.test(text) ? "error" : "pending";
     }).catch(() => {
-      target.textContent = "Status unavailable";
+      target.textContent = "Статус недоступен";
       target.dataset.state = "error";
     });
   }
 
   function renderGeneral(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">General Settings</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Window controls, Discord presence, and scaling.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Общие настройки</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Поведение окна, Discord Rich Presence и масштаб интерфейса.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
-    const discordCard = createToggle("discord_rpc", "Discord Rich Presence", "Display current playing track, artist, album, and artwork on Discord profile.", true);
+    const discordCard = createToggle("discord_rpc", "Discord Rich Presence", "Отображать текущий трек, исполнителя, альбом и обложку в профиле Discord.", true);
     const discordStatus = document.createElement("div");
     discordStatus.className = "ytm-status-line";
     discordStatus.dataset.state = "pending";
-    discordStatus.textContent = "Checking Discord connection…";
+    discordStatus.textContent = "Проверка подключения к Discord…";
     discordCard.querySelector(".ytm-card-details")?.appendChild(discordStatus);
     group.appendChild(discordCard);
     refreshAppStatus(discordStatus);
-    group.appendChild(createToggle("close_to_tray", "Close to Tray", "Minimize YouTube Music to system notification tray instead of exiting.", false));
-    group.appendChild(createToggle("launch_at_startup", "Launch at Startup", "Automatically start YouTube Music when logging into Windows.", false));
-    group.appendChild(createToggle("start_minimized", "Start Minimized", "Launch app directly in background/tray without showing main window.", false));
+    group.appendChild(createToggle("close_to_tray", "Сворачивать в трей при закрытии", "При нажатии на крестик сворачивать YouTube Music в системный трей вместо выхода.", false));
+    group.appendChild(createToggle("launch_at_startup", "Запускать вместе с Windows", "Автоматически запускать YouTube Music при входе в систему.", false));
+    group.appendChild(createToggle("start_minimized", "Запускать свёрнутым в трей", "Сразу убирать окно в трей при автозапуске приложения.", false));
 
     const zoomCard = document.createElement("div");
     zoomCard.className = "ytm-settings-card";
     setHTML(zoomCard, `
       <div class="ytm-card-details">
-        <div class="ytm-card-name">Interface Zoom</div>
-        <div class="ytm-card-summary">Scale web interface up or down for high-DPI displays.</div>
+        <div class="ytm-card-name">Масштаб интерфейса</div>
+        <div class="ytm-card-summary">Увеличение или уменьшение масштаба интерфейса плеера.</div>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="ytm-action-btn" id="ytm-zoom-out">−</button>
-        <button class="ytm-action-btn" id="ytm-zoom-reset">Reset</button>
+        <button class="ytm-action-btn" id="ytm-zoom-reset">Сбросить</button>
         <button class="ytm-action-btn" id="ytm-zoom-in">+</button>
       </div>
     `);
@@ -979,57 +1005,58 @@
 
   function renderLyrics(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Synced Lyrics</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Multi-provider synchronized karaoke lyrics, line effects, and auto-sync.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Синхронный текст песни</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Караоке-подсветка строк, эффекты анимации и автоматический перевод.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
-    group.appendChild(createToggle("synced_lyrics", "Enable Synced Lyrics", "Display synchronous multi-provider lyrics in the YouTube Music lyrics tab.", true));
-    group.appendChild(createToggle("lyrics_auto_sync", "Auto Sync Lyrics after 3 Seconds", "Automatically resync viewport to current song position after 3s scroll inactivity.", true));
-    group.appendChild(createToggle("lyrics_precise_timing", "Precise Timing (100ms)", "High-precision timer updates for smooth lyric tracking.", true));
-    group.appendChild(createToggle("lyrics_romanization", "Romanization (Romaji)", "Provide Latin transliteration for Japanese, Korean, and Chinese lyrics.", false));
-    group.appendChild(createToggle("lyrics_show_timecodes", "Show Timecodes", "Display millisecond timestamp markers beside lyric lines.", false));
+    group.appendChild(createToggle("synced_lyrics", "Включить синхронный текст", "Показывать синхронизированный текст во вкладке «Текст».", true));
+    group.appendChild(createToggle("lyrics_auto_sync", "Автосинхронизация через 3 сек", "Автоматически возвращать прокрутку к текущей строчке через 3 секунды бездействия.", true));
+    group.appendChild(createToggle("lyrics_precise_timing", "Точный тайминг (100 мс)", "Частое обновление позиции для максимально плавного отслеживания строк.", true));
+    group.appendChild(createToggle("lyrics_romanization", "Романизация (Romaji)", "Транслитерация латиницей для японских, корейских и китайских песен.", false));
+    group.appendChild(createToggle("lyrics_translation", "Автоперевод текста", "Показывать аккуратный перевод под иностранными строками песни.", true));
+    group.appendChild(createToggle("lyrics_show_timecodes", "Показывать таймкоды", "Отображать временные метки рядом со строками текста.", false));
 
     const effects = [
-      { value: "cinematic", label: "Cinematic (Depth & Blur)" },
-      { value: "studio", label: "Studio (High-Contrast)" },
-      { value: "luminescent", label: "Luminescent (Ambient Shimmer)" },
-      { value: "fancy", label: "Fancy (Glow & Wobble)" },
-      { value: "scale", label: "Scale (Active Focus)" },
-      { value: "offset", label: "Offset (Indented)" },
-      { value: "focus", label: "Focus (Clean Opacity)" },
+      { value: "cinematic", label: "Кинематограф (глубина и размытие)" },
+      { value: "studio", label: "Студия (высокий контраст)" },
+      { value: "luminescent", label: "Люминесцентный (мягкое свечение)" },
+      { value: "fancy", label: "Эффектный (блики и покачивание)" },
+      { value: "scale", label: "Масштаб (акцент на строке)" },
+      { value: "offset", label: "Сдвиг (отступ активной строки)" },
+      { value: "focus", label: "Фокус (чистая прозрачность)" },
     ];
-    group.appendChild(createSelect("lyrics_line_effect", "Line Animation Effect", "Visual animation style applied to active and upcoming lyric lines.", effects, "fancy"));
+    group.appendChild(createSelect("lyrics_line_effect", "Эффект анимации строк", "Визуальный стиль активной и соседних строк текста песни.", effects, "fancy"));
 
     container.appendChild(group);
   }
 
   function renderAudio(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Audio & Equalizer</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">10-band graphic equalizer, smooth equal-power crossfade, volume curves, and routing.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Звук и эквалайзер</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">10-полосный эквалайзер, плавный кроссфейд, настройка громкости и вывода.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
-    group.appendChild(createToggle("equalizer", "Equalizer DSP", "Enable 10-band graphic equalizer and anti-clipping limiter.", false));
+    group.appendChild(createToggle("equalizer", "Эквалайзер DSP", "Включить 10-полосный графический эквалайзер и лимитер.", false));
 
     const presets = [
-      { value: "flat", label: "Flat / Neutral" },
-      { value: "bass-booster", label: "Bass Boost" },
-      { value: "bass-reducer", label: "Bass Reducer" },
-      { value: "treble-booster", label: "Treble Boost" },
-      { value: "treble-reducer", label: "Treble Reducer" },
-      { value: "vocal-booster", label: "Vocal Boost" },
-      { value: "rock", label: "Rock" },
-      { value: "pop", label: "Pop" },
-      { value: "electronic", label: "Electronic / Dance" },
-      { value: "hip-hop", label: "Hip-Hop" },
-      { value: "acoustic", label: "Acoustic" },
-      { value: "classical", label: "Classical" },
+      { value: "flat", label: "Ровный (Flat)" },
+      { value: "bass-booster", label: "Усиление басов" },
+      { value: "bass-reducer", label: "Уменьшение басов" },
+      { value: "treble-booster", label: "Усиление высоких" },
+      { value: "treble-reducer", label: "Уменьшение высоких" },
+      { value: "vocal-booster", label: "Акцент на вокал" },
+      { value: "rock", label: "Рок" },
+      { value: "pop", label: "Поп" },
+      { value: "electronic", label: "Электроника / Dance" },
+      { value: "hip-hop", label: "Хип-хоп" },
+      { value: "acoustic", label: "Акустика" },
+      { value: "classical", label: "Классика" },
       { value: "deep", label: "R&B / Deep" },
-      { value: "custom", label: "Custom" },
+      { value: "custom", label: "Свой профиль" },
     ];
-    const presetCard = createSelect("equalizer_preset", "Equalizer Preset", "Select frequency profile or customize individual bands below.", presets, "bass-booster");
+    const presetCard = createSelect("equalizer_preset", "Профиль эквалайзера", "Выберите готовый пресет или настройте полосы вручную ниже.", presets, "bass-booster");
     const selectEl = presetCard.querySelector("select");
     if (selectEl) selectEl.id = "ytm-eq-preset-select";
     group.appendChild(presetCard);
@@ -1050,32 +1077,32 @@
       });
     }
 
-    group.appendChild(createToggle("crossfade", "Crossfade Audio", "Smooth volume transition between consecutive tracks.", false));
+    group.appendChild(createToggle("crossfade", "Плавный кроссфейд", "Плавное затухание и нарастание громкости при смене треков.", false));
 
     const durations = [
-      { value: "1", label: "1 second" },
-      { value: "2", label: "2 seconds" },
-      { value: "3", label: "3 seconds" },
-      { value: "4", label: "4 seconds (Default)" },
-      { value: "5", label: "5 seconds" },
-      { value: "6", label: "6 seconds" },
-      { value: "8", label: "8 seconds" },
-      { value: "10", label: "10 seconds" },
-      { value: "12", label: "12 seconds" },
+      { value: "1", label: "1 секунда" },
+      { value: "2", label: "2 секунды" },
+      { value: "3", label: "3 секунды" },
+      { value: "4", label: "4 секунды (по умолчанию)" },
+      { value: "5", label: "5 секунд" },
+      { value: "6", label: "6 секунд" },
+      { value: "8", label: "8 секунд" },
+      { value: "10", label: "10 секунд" },
+      { value: "12", label: "12 секунд" },
     ];
-    group.appendChild(createSelect("crossfade_seconds", "Crossfade Duration", "Duration of the smooth fade between tracks.", durations, "4"));
+    group.appendChild(createSelect("crossfade_seconds", "Длительность кроссфейда", "Длительность плавного перехода между треками.", durations, "4"));
 
     const curves = [
-      { value: "equal-power", label: "Equal-Power (Smooth / Recommended)" },
-      { value: "logarithmic", label: "Logarithmic (Exponential)" },
-      { value: "linear", label: "Linear" },
+      { value: "equal-power", label: "Equal-Power (плавная, рекомендуется)" },
+      { value: "logarithmic", label: "Логарифмическая" },
+      { value: "linear", label: "Линейная" },
     ];
-    group.appendChild(createSelect("crossfade_curve", "Crossfade Curve", "Mathematical volume curve applied during fading.", curves, "equal-power"));
+    group.appendChild(createSelect("crossfade_curve", "Кривая кроссфейда", "Характер изменения громкости во время перехода.", curves, "equal-power"));
 
-    group.appendChild(createToggle("precise_volume", "Precise Volume Steps", "Granular 1% mouse-wheel volume increments.", false));
-    group.appendChild(createToggle("exponential_volume", "Exponential Volume Curve", "Logarithmic volume curve matching human ear perception.", false));
-    group.appendChild(createToggle("playback_speed", "Playback Speed Controls", "Add dedicated variable speed slider to the player bar.", false));
-    group.appendChild(createToggle("custom_output_device", "Custom Output Device", "Route YouTube Music playback to a dedicated sound output.", false));
+    group.appendChild(createToggle("precise_volume", "Точная настройка громкости", "Плавное изменение громкости шагом 1% колёсиком мыши.", false));
+    group.appendChild(createToggle("exponential_volume", "Логарифмическая кривая громкости", "Более естественное изменение громкости для человеческого слуха.", false));
+    group.appendChild(createToggle("playback_speed", "Управление скоростью воспроизведения", "Добавить слайдер изменения скорости в панель плеера.", false));
+    group.appendChild(createToggle("custom_output_device", "Выбор устройства вывода", "Выводить звук YouTube Music на отдельное аудиоустройство.", false));
 
     container.appendChild(group);
   }
@@ -1083,27 +1110,27 @@
 
   function renderTweaks(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Tweaks & Visuals</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Native ad blocking, SponsorBlock, ambient glow, and auto-skip.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Оформление и фичи</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Блокировка рекламы, SponsorBlock, подсветка и умный пропуск.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
-    group.appendChild(createToggle("ad_block", "Native Ad Blocking", "Block audio/video ads, promotional banners, and tracking domains.", true));
-    group.appendChild(createToggle("sponsorblock", "SponsorBlock", "Automatically skip sponsor segments, intros, and non-music interludes.", true));
-    group.appendChild(createToggle("spotify_spoof", "Spotify Spoof", "Display Discord presence as Spotify with artwork and Play on Spotify button.", false));
-    group.appendChild(createToggle("ambient_mode", "Ambient Mode Glow", "Radiant album artwork ambient glow surrounding the video player.", true));
-    group.appendChild(createToggle("blur_nav_bar", "Blur Navigation Bar", "Frosted glass backdrop filter on top navigation and player bars.", true));
-    group.appendChild(createToggle("skip_disliked", "Skip Disliked Songs", "Automatically skip to next track when a disliked song is encountered.", false));
-    group.appendChild(createToggle("video_toggle", "Video Mode Toggle", "Add single-click audio/video mode switch button to player bar.", false));
-    group.appendChild(createToggle("disable_autoplay", "Disable Autoplay", "Prevent YouTube Music from automatically playing next recommended track.", false));
+    group.appendChild(createToggle("ad_block", "Встроенная блокировка рекламы", "Блокировать аудио/видео-рекламу, баннеры и трекеры.", true));
+    group.appendChild(createToggle("sponsorblock", "SponsorBlock", "Автоматически пропускать интро, аутро и немузыкальные вставки в клипах.", false));
+    group.appendChild(createToggle("spotify_spoof", "Показывать как Spotify в Discord", "Маскировать активность в Discord под Spotify с обложкой и кнопкой.", false));
+    group.appendChild(createToggle("ambient_mode", "Ambient-подсветка", "Мягкое цветное свечение под цвет обложки вокруг плеера.", true));
+    group.appendChild(createToggle("blur_nav_bar", "Размытие панелей", "Эффект матового стекла для верхней панели навигации.", true));
+    group.appendChild(createToggle("skip_disliked", "Пропускать дизлайкнутые треки", "Автоматически переключать на следующий трек, если стоит дизлайк.", false));
+    group.appendChild(createToggle("video_toggle", "Переключатель аудио/видео", "Добавить быструю кнопку переключения режима аудио/видео.", false));
+    group.appendChild(createToggle("disable_autoplay", "Отключить автовоспроизведение", "Не запускать автоматически похожие треки после конца очереди.", false));
 
     container.appendChild(group);
   }
 
   function renderScrobble(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Music Scrobbling</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Track listening history across Last.fm and ListenBrainz.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Скробблинг музыки</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Отправка истории прослушиваний в Last.fm и ListenBrainz.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
@@ -1113,22 +1140,22 @@
     const connectCard = (id, title, summary, connected, connectAction, disconnectAction) => {
       const card = document.createElement("div");
       card.className = "ytm-settings-card";
-      setHTML(card, `<div class="ytm-card-details"><div class="ytm-card-name">${title}</div><div class="ytm-card-summary">${summary}</div></div><button class="ytm-action-btn ${connected ? "" : "ytm-action-btn-primary"}" id="${id}">${connected ? "Disconnect" : "Connect"}</button>`);
+      setHTML(card, `<div class="ytm-card-details"><div class="ytm-card-name">${title}</div><div class="ytm-card-summary">${summary}</div></div><button class="ytm-action-btn ${connected ? "" : "ytm-action-btn-primary"}" id="${id}">${connected ? "Отключить" : "Подключить"}</button>`);
       card.querySelector("button")?.addEventListener("click", () => triggerAction(connected ? disconnectAction : connectAction));
       return card;
     };
-    group.appendChild(connectCard("ytm-connect-lastfm", "Last.fm Account", lastfmConnected ? "Connected. Credentials are protected by Windows account encryption." : "Connect with your Last.fm application key and secret.", lastfmConnected, "connect_lastfm", "disconnect_lastfm"));
-    group.appendChild(createToggle("lastfm_scrobbling", "Last.fm Scrobbler", "Automatically log played songs to your Last.fm profile.", false));
-    group.appendChild(connectCard("ytm-connect-listenbrainz", "ListenBrainz Account", listenbrainzConnected ? "Connected. Your token is protected by Windows account encryption." : "Connect with a ListenBrainz user token.", listenbrainzConnected, "connect_listenbrainz", "disconnect_listenbrainz"));
-    group.appendChild(createToggle("listenbrainz_scrobbling", "ListenBrainz Scrobbler", "Submit listens to open-source ListenBrainz music archive.", false));
+    group.appendChild(connectCard("ytm-connect-lastfm", "Аккаунт Last.fm", lastfmConnected ? "Подключён. Ключи защищены шифрованием учётной записи Windows." : "Подключите ключ и секрет приложения Last.fm.", lastfmConnected, "connect_lastfm", "disconnect_lastfm"));
+    group.appendChild(createToggle("lastfm_scrobbling", "Скробблинг Last.fm", "Автоматически сохранять прослушанные треки в профиль Last.fm.", false));
+    group.appendChild(connectCard("ytm-connect-listenbrainz", "Аккаунт ListenBrainz", listenbrainzConnected ? "Подключён. Токен защищён шифрованием учётной записи Windows." : "Подключите пользовательский токен ListenBrainz.", listenbrainzConnected, "connect_listenbrainz", "disconnect_listenbrainz"));
+    group.appendChild(createToggle("listenbrainz_scrobbling", "Скробблинг ListenBrainz", "Отправлять прослушивания в открытый архив ListenBrainz.", false));
 
     container.appendChild(group);
   }
 
   function renderSystem(container) {
     setHTML(container, `
-      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">System</h2>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Repository source, updates, cache maintenance, and session reset.</p>
+      <h2 style="font-size:20px;margin:0 0 4px 0;color:#fff;">Система и обслуживание</h2>
+      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 20px 0;">Репозиторий, обновления, очистка кэша и сброс сессии.</p>
     `);
     const group = document.createElement("div");
     group.className = "ytm-card-group";
@@ -1138,10 +1165,10 @@
     githubCard.className = "ytm-settings-card";
     setHTML(githubCard, `
       <div class="ytm-card-details">
-        <div class="ytm-card-name">GitHub Repository</div>
-        <div class="ytm-card-summary">xzelleiv/ytm-tauri · Releases, issues, and open-source documentation.</div>
+        <div class="ytm-card-name">Репозиторий GitHub</div>
+        <div class="ytm-card-summary">xzelleiv/ytm-tauri · Релизы, исходный код и документация.</div>
       </div>
-      <button class="ytm-action-btn" id="ytm-act-github" title="Open GitHub Repository" aria-label="Open GitHub" style="display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;">
+      <button class="ytm-action-btn" id="ytm-act-github" title="Открыть репозиторий на GitHub" aria-label="Открыть GitHub" style="display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;">
         ${GITHUB_ICON_SVG}
       </button>
     `);
@@ -1157,21 +1184,21 @@
     updateCard.style.alignItems = "flex-start";
     setHTML(updateCard, `
       <div class="ytm-card-details">
-        <div class="ytm-card-name">App updates <span data-update="version" style="font-size:12px;color:#aaa;font-weight:400;margin-left:8px"></span></div>
+        <div class="ytm-card-name">Обновления приложения <span data-update="version" style="font-size:12px;color:#aaa;font-weight:400;margin-left:8px"></span></div>
         <div class="ytm-card-summary" data-update="message" role="status" aria-live="polite"></div>
-        <progress max="100" aria-label="Update download progress" style="width:100%;height:6px;accent-color:#fff;margin-top:14px" hidden></progress>
+        <progress max="100" aria-label="Прогресс загрузки обновления" style="width:100%;height:6px;accent-color:#fff;margin-top:14px" hidden></progress>
         <div data-update="bytes" style="font-size:12px;color:#aaa;margin-top:6px"></div>
       </div>
-      <button class="ytm-action-btn ytm-action-btn-primary" id="ytm-act-update">Check Now</button>
+      <button class="ytm-action-btn ytm-action-btn-primary" id="ytm-act-update">Проверить</button>
     `);
     updateCard.querySelector("#ytm-act-update")?.addEventListener("click", async () => {
       const button = updateCard.querySelector("button");
       button.disabled = true;
       try {
-        if (!window.__ytmFeatures?.triggerAction) throw new Error("Update service unavailable");
+        if (!window.__ytmFeatures?.triggerAction) throw new Error("Сервис обновлений недоступен");
         await window.__ytmFeatures.triggerAction("check_updates");
       } catch {
-        updateStatus = { ...updateStatus, stage: "error", message: "Could not reach the update service. Try again." };
+        updateStatus = { ...updateStatus, stage: "error", message: "Не удалось связаться с сервисом обновлений. Повторите попытку." };
       } finally { renderUpdateStatus(); }
     });
     group.appendChild(updateCard);
@@ -1181,10 +1208,10 @@
     cacheCard.className = "ytm-settings-card";
     setHTML(cacheCard, `
       <div class="ytm-card-details">
-        <div class="ytm-card-name">Clear Cache and Reload</div>
-        <div class="ytm-card-summary">Flush local WebView caches, lyrics cache, and reload.</div>
+        <div class="ytm-card-name">Очистить кэш и перезагрузить</div>
+        <div class="ytm-card-summary">Сбросить локальный кэш WebView, кэш текстов песен и обновить страницу.</div>
       </div>
-      <button class="ytm-action-btn" id="ytm-act-cache">Clear Cache</button>
+      <button class="ytm-action-btn" id="ytm-act-cache">Очистить кэш</button>
     `);
     cacheCard.querySelector("#ytm-act-cache")?.addEventListener("click", () => triggerAction("clear_cache"));
     group.appendChild(cacheCard);
@@ -1194,10 +1221,10 @@
     resetCard.className = "ytm-settings-card";
     setHTML(resetCard, `
       <div class="ytm-card-details">
-        <div class="ytm-card-name">Reset Session Data</div>
-        <div class="ytm-card-summary">Wipe stored cookies, site storage, and restart fresh.</div>
+        <div class="ytm-card-name">Сброс данных сессии</div>
+        <div class="ytm-card-summary">Удалить cookie, хранилище сайта и выйти из аккаунта.</div>
       </div>
-      <button class="ytm-action-btn" id="ytm-act-reset">Reset Session</button>
+      <button class="ytm-action-btn" id="ytm-act-reset">Сбросить сессию</button>
     `);
     resetCard.querySelector("#ytm-act-reset")?.addEventListener("click", () => triggerAction("reset_session"));
     group.appendChild(resetCard);
@@ -1221,14 +1248,14 @@
       <div class="ytm-modal-box">
         <div class="ytm-modal-topbar">
           <div class="ytm-modal-heading">
-            YouTube Music Settings
-            <span>${APP_VERSION ? `v${APP_VERSION} ` : ""}by xzelleiv</span>
+            Настройки YouTube Music
+            <span>${APP_VERSION ? `v${APP_VERSION} ` : ""}от xzelleiv</span>
           </div>
           <label class="ytm-modal-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <input type="search" id="ytm-settings-search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false">
+            <input type="search" id="ytm-settings-search" placeholder="Поиск настроек" aria-label="Поиск настроек" autocomplete="off" spellcheck="false">
           </label>
-          <button class="ytm-modal-close" id="ytm-modal-close-btn" title="Close Settings">
+          <button class="ytm-modal-close" id="ytm-modal-close-btn" title="Закрыть настройки">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
           </button>
         </div>
@@ -1236,27 +1263,27 @@
           <div class="ytm-modal-tabs" role="tablist" aria-orientation="vertical">
             <button role="tab" class="ytm-tab-button ${activeTab === "general" ? "active" : ""}" data-tab="general">
               <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-              General
+              Общие
             </button>
             <button role="tab" class="ytm-tab-button ${activeTab === "lyrics" ? "active" : ""}" data-tab="lyrics">
               <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-              Synced Lyrics
+              Текст песни
             </button>
             <button role="tab" class="ytm-tab-button ${activeTab === "audio" ? "active" : ""}" data-tab="audio">
               <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
-              Audio & Equalizer
+              Звук и эквалайзер
             </button>
             <button role="tab" class="ytm-tab-button ${activeTab === "tweaks" ? "active" : ""}" data-tab="tweaks">
               <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
-              Tweaks & Visuals
+              Оформление и фичи
             </button>
             <button role="tab" class="ytm-tab-button ${activeTab === "scrobble" ? "active" : ""}" data-tab="scrobble">
               <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-              Scrobbling
+              Скробблинг
             </button>
             <button role="tab" class="ytm-tab-button ${activeTab === "system" ? "active" : ""}" data-tab="system">
               <svg viewBox="0 0 24 24"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>
-              System
+              Система
             </button>
           </div>
           <div class="ytm-modal-main" id="ytm-modal-content-area"></div>
@@ -1355,7 +1382,7 @@
     if (!matches) {
       const empty = document.createElement("div");
       empty.className = "ytm-search-empty";
-      empty.textContent = `No settings match "${searchQuery}".`;
+      empty.textContent = `По запросу «${searchQuery}» ничего не найдено.`;
       area.appendChild(empty);
     }
   }
@@ -1384,6 +1411,8 @@
     if (modal) modal.classList.add("open");
     setTimeout(() => modal?.querySelector?.(".ytm-tab-button.active")?.focus?.(), 0);
   }
+
+  window.__ytmOpenSettings = openSettingsScreen;
 
   function closeSettingsScreen() {
     isOpen = false;
@@ -1416,7 +1445,8 @@
     const popoverWidth = popover.offsetWidth || 156;
     const top = rect.bottom + 9;
     const center = rect.left + rect.width / 2;
-    const left = Math.max(12, center - popoverWidth / 2);
+    const vw = typeof window !== "undefined" ? (window.innerWidth || 1280) : 1280;
+    const left = Math.max(12, Math.min(vw - popoverWidth - 12, center - popoverWidth / 2));
     popover.style.top = `${top}px`;
     popover.style.left = `${left}px`;
   }
@@ -1442,8 +1472,8 @@
       <div class="ytm-bubble-cursor">
         <svg viewBox="0 0 24 24"><path d="M5.5 2.5l13 8.5-6 1.5 3.5 7.5-2.5 1-3.5-7.5-4.5 4.5V2.5z"/></svg>
       </div>
-      <span class="ytm-bubble-text">Click for <strong>Settings</strong></span>
-      <button class="ytm-bubble-close" id="ytm-onboarding-dismiss" title="Dismiss">✕</button>
+      <span class="ytm-bubble-text">Открой <strong>Настройки</strong></span>
+      <button class="ytm-bubble-close" id="ytm-onboarding-dismiss" title="Скрыть">✕</button>
     `);
 
     popover.addEventListener("click", (e) => {
@@ -1475,8 +1505,8 @@
       if (!gearBtn) {
         gearBtn = document.createElement("button");
         gearBtn.id = HEADER_BTN_ID;
-        gearBtn.setAttribute("title", "YouTube Music Settings");
-        gearBtn.setAttribute("aria-label", "YouTube Music Settings");
+        gearBtn.setAttribute("title", "Настройки YouTube Music");
+        gearBtn.setAttribute("aria-label", "Настройки YouTube Music");
         setHTML(gearBtn, GEAR_ICON_SVG);
         gearBtn.addEventListener("click", (e) => {
           e.preventDefault();
@@ -1530,9 +1560,19 @@
     }
   });
 
-  // throttled header install
+  // throttled header install (narrows observer from documentElement to ytmusic-nav-bar as soon as it mounts)
   let installScheduled = false;
+  let observingNavOnly = false;
   const observer = new MutationObserver(() => {
+    if (!observingNavOnly) {
+      const navEl = document.querySelector("ytmusic-nav-bar");
+      if (navEl) {
+        observingNavOnly = true;
+        observer.disconnect();
+        observer.observe(navEl, { childList: true, subtree: true });
+      }
+    }
+    if (document.getElementById("ytm-settings-btn")) return;
     if (installScheduled) return;
     installScheduled = true;
     setTimeout(() => {
@@ -1546,9 +1586,12 @@
       setTimeout(install, 50);
       return;
     }
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    const nav = document.querySelector("ytmusic-nav-bar");
+    observingNavOnly = Boolean(nav);
+    observer.observe(nav || document.documentElement, { childList: true, subtree: true });
     installHeaderElements();
 
+    document.addEventListener("yt-navigate-finish", installHeaderElements, true);
     const interval = setInterval(installHeaderElements, 500);
     setTimeout(() => clearInterval(interval), 10_000);
   };

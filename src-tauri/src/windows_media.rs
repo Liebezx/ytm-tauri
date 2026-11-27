@@ -1,5 +1,8 @@
 use crate::{presence::TrackMetadata, settings, settings::SharedSettings};
-use std::sync::OnceLock;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    OnceLock,
+};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use windows::{
     core::Result as WindowsResult,
@@ -11,7 +14,7 @@ use windows::{
                 DefSubclassProc, ITaskbarList3, SetWindowSubclass, TaskbarList, THBF_ENABLED,
                 THBF_HIDDEN, THBN_CLICKED, THB_FLAGS, THB_ICON, THB_TOOLTIP, THUMBBUTTON,
             },
-            WindowsAndMessaging::{CreateIcon, HICON, WM_COMMAND},
+            WindowsAndMessaging::{CreateIcon, DestroyIcon, HICON, WM_COMMAND},
         },
     },
 };
@@ -23,6 +26,7 @@ const NEXT_BUTTON: u32 = 0x5003;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 static SETTINGS: OnceLock<SharedSettings> = OnceLock::new();
+static BUTTONS_SHOWN: AtomicBool = AtomicBool::new(false);
 
 pub fn install(window: &WebviewWindow, settings: SharedSettings) {
     let Ok(hwnd) = window.hwnd() else {
@@ -84,13 +88,13 @@ unsafe extern "system" fn subclass_proc(
 fn media_action(app: &AppHandle, action: &str) {
     let script = match action {
         "previous" => {
-            "(() => { const button = document.querySelector('ytmusic-player-bar #previous-button, ytmusic-player-bar #previous-song-button, ytmusic-player-bar .previous-button, ytmusic-player-bar [aria-label^=\"Previous\"]'); if (button) button.click(); else { const media = document.querySelector('video, audio'); if (media) media.currentTime = 0; } })();"
+            "(() => { const button = document.querySelector('ytmusic-player-bar #previous-button, ytmusic-player-bar #previous-song-button, ytmusic-player-bar .previous-button, ytmusic-player-bar [aria-label^=\"Previous\"], [slot=\"player-bar\"] #previous-button, [slot=\"player-bar\"] .previous-button, [slot=\"player-bar\"] [aria-label^=\"Previous\"], ytmusic-miniplayer [aria-label^=\"Previous\"]'); if (button) button.click(); else { const media = document.querySelector('video, audio'); if (media) media.currentTime = 0; } })();"
         }
         "play_pause" => {
-            "(() => { const media = document.querySelector('video, audio'); if (media) media.paused ? media.play() : media.pause(); else document.querySelector('ytmusic-player-bar #play-pause-button, ytmusic-player-bar .play-pause-button')?.click(); })();"
+            "(() => { const media = document.querySelector('video, audio'); if (media) media.paused ? media.play() : media.pause(); else document.querySelector('ytmusic-player-bar #play-pause-button, ytmusic-player-bar .play-pause-button, [slot=\"player-bar\"] #play-pause-button, [slot=\"player-bar\"] .play-pause-button, ytmusic-miniplayer [aria-label^=\"Play\"], ytmusic-miniplayer [aria-label^=\"Pause\"]')?.click(); })();"
         }
         "next" => {
-            "(() => { const button = document.querySelector('ytmusic-player-bar #next-button, ytmusic-player-bar #next-song-button, ytmusic-player-bar .next-button, ytmusic-player-bar [aria-label^=\"Next\"]'); if (button) button.click(); else { const media = document.querySelector('video, audio'); if (media && Number.isFinite(media.duration)) media.currentTime = media.duration; } })();"
+            "(() => { const button = document.querySelector('ytmusic-player-bar #next-button, ytmusic-player-bar #next-song-button, ytmusic-player-bar .next-button, ytmusic-player-bar [aria-label^=\"Next\"], [slot=\"player-bar\"] #next-button, [slot=\"player-bar\"] .next-button, [slot=\"player-bar\"] [aria-label^=\"Next\"], ytmusic-miniplayer [aria-label^=\"Next\"]'); if (button) button.click(); else { const media = document.querySelector('video, audio'); if (media && Number.isFinite(media.duration)) media.currentTime = media.duration; } })();"
         }
         _ => return,
     };
@@ -105,6 +109,9 @@ fn update_buttons(hwnd: HWND, track: Option<&TrackMetadata>) {
         .get()
         .map(settings::snapshot)
         .is_some_and(|value| value.windows_media_controls);
+    if !enabled && !BUTTONS_SHOWN.swap(false, Ordering::Relaxed) {
+        return;
+    }
     let playing = track.is_some_and(|value| value.playing);
 
     let Ok(taskbar) = taskbar() else {
@@ -138,6 +145,12 @@ fn update_buttons(hwnd: HWND, track: Option<&TrackMetadata>) {
     unsafe {
         if taskbar.ThumbBarUpdateButtons(hwnd, &buttons).is_err() {
             let _ = taskbar.ThumbBarAddButtons(hwnd, &buttons);
+        }
+        if enabled {
+            BUTTONS_SHOWN.store(true, Ordering::Relaxed);
+        }
+        for icon in [previous_icon, play_pause_icon, next_icon] {
+            let _ = DestroyIcon(icon);
         }
     }
 }

@@ -112,6 +112,8 @@ pub fn handle_title(window: &WebviewWindow, title: &str, state: &AppState) {
                     } else if key == "lyrics_line_effect" {
                         crate::controls::sync_tray_effects(window.app_handle(), state);
                     }
+                    #[cfg(windows)]
+                    crate::tray_popup::refresh(window.app_handle());
                     updated_settings = Some(sanitize_settings(snap));
                 }
             }
@@ -174,6 +176,27 @@ pub fn handle_title(window: &WebviewWindow, title: &str, state: &AppState) {
                         error: None,
                     },
                     Err(error) => error_response(error),
+                };
+                send_response(&window, request.id, &response);
+            });
+        }
+        "translate" => {
+            send_ack(window, request.id);
+            let req = request
+                .value
+                .clone()
+                .and_then(|value| serde_json::from_value::<lyrics::TranslateRequest>(value).ok())
+                .unwrap_or_default();
+            let window = window.clone();
+            thread::spawn(move || {
+                let translated = lyrics::translate_lines(&req);
+                let response = FeatureResponse {
+                    ok: true,
+                    status: Some(200),
+                    body: serde_json::to_string(&translated).ok(),
+                    headers: HashMap::new(),
+                    settings: None,
+                    error: None,
                 };
                 send_response(&window, request.id, &response);
             });
@@ -342,6 +365,12 @@ pub fn apply_setting_update(
         "lyrics_romanization" => {
             if let Some(v) = value.as_bool() {
                 settings.lyrics_romanization = v;
+                return true;
+            }
+        }
+        "lyrics_translation" => {
+            if let Some(v) = value.as_bool() {
+                settings.lyrics_translation = v;
                 return true;
             }
         }
@@ -541,6 +570,18 @@ fn parse_request(title: &str) -> Option<FeatureRequest> {
                 .value
                 .as_ref()
                 .is_some_and(serde_json::Value::is_object)
+            {
+                Some(request)
+            } else {
+                None
+            }
+        }
+        "translate" => {
+            if request
+                .value
+                .as_ref()
+                .and_then(|value| value.get("lines"))
+                .is_some_and(serde_json::Value::is_array)
             {
                 Some(request)
             } else {
@@ -756,6 +797,21 @@ mod tests {
 
         let request = r#"YTMFEATURE:{"id":5,"kind":"get_app_status"}"#;
         assert!(parse_request(request).is_some());
+    }
+
+    #[test]
+    fn bridge_accepts_translate_requests() {
+        let valid = r#"YTMFEATURE:{"id":6,"kind":"translate","value":{"target":"ru","lines":["Hello world","Before you get to taste the finer life"]}}"#;
+        let parsed = parse_request(valid).expect("translate request");
+        assert_eq!(parsed.id, 6);
+        assert_eq!(parsed.kind, "translate");
+        let req: lyrics::TranslateRequest =
+            serde_json::from_value(parsed.value.expect("value")).expect("translate payload");
+        assert_eq!(req.target, "ru");
+        assert_eq!(req.lines.len(), 2);
+
+        let invalid = r#"YTMFEATURE:{"id":7,"kind":"translate","value":{"target":"ru"}}"#;
+        assert!(parse_request(invalid).is_none());
     }
 
     #[test]

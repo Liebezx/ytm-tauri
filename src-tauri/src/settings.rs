@@ -19,6 +19,7 @@ pub struct Settings {
     pub lyrics_show_inexact: bool,
     pub lyrics_show_timecodes: bool,
     pub lyrics_romanization: bool,
+    pub lyrics_translation: bool,
     pub lyrics_auto_sync: bool,
     pub lyrics_line_effect: String,
     pub lastfm_scrobbling: bool,
@@ -68,6 +69,7 @@ impl Default for Settings {
             lyrics_show_inexact: true,
             lyrics_show_timecodes: false,
             lyrics_romanization: false,
+            lyrics_translation: true,
             lyrics_auto_sync: true,
             lyrics_line_effect: "fancy".to_string(),
             lastfm_scrobbling: false,
@@ -88,7 +90,7 @@ impl Default for Settings {
             playback_speed: false,
             playback_rate: 1.0,
             skip_disliked: false,
-            sponsorblock: true,
+            sponsorblock: false,
             blur_nav_bar: true,
             disable_autoplay: false,
             video_toggle: false,
@@ -237,10 +239,12 @@ mod tests {
 
         assert!(!settings.discord_rpc);
         assert!(settings.ad_block);
+        assert!(!settings.sponsorblock);
         assert_eq!(settings.zoom, 1.0);
         assert!(settings.synced_lyrics);
         assert!(settings.lyrics_precise_timing);
         assert!(settings.lyrics_show_inexact);
+        assert!(settings.lyrics_translation);
         assert_eq!(settings.lyrics_line_effect, "fancy");
         assert_eq!(settings.output_device, "default");
         assert_eq!(settings.equalizer_preset, "bass-booster");

@@ -1,9 +1,9 @@
 # YouTube Music Unofficial
 
-[![Release](https://img.shields.io/github/v/release/xzelleiv/ytm-tauri?label=release)](https://github.com/xzelleiv/ytm-tauri/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Liebezx/ytm-tauri?label=release)](https://github.com/Liebezx/ytm-tauri/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D4)](#requirements)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB)](https://tauri.app/)
-[![License](https://img.shields.io/github/license/xzelleiv/ytm-tauri)](LICENSE)
+[![License](https://img.shields.io/github/license/Liebezx/ytm-tauri)](LICENSE)
 
 Unofficial Windows desktop app for YouTube Music, built with Tauri v2 and WebView2.
 
@@ -13,17 +13,17 @@ This app gives YouTube Music its own dedicated Windows window, keeps your normal
 
 - Windows only.
 - Unofficial project, not affiliated with YouTube, Google, Discord, Microsoft, or Tauri.
-- Current release: [`v0.2.6`](https://github.com/xzelleiv/ytm-tauri/releases/tag/v0.2.6).
+- Current release: [`v0.2.6`](https://github.com/Liebezx/ytm-tauri/releases/tag/v0.2.6).
 
 ## Download
 
 Use the NSIS setup installer for normal installs:
 
-[Download `YouTube.Music_0.2.6_x64-setup.exe`](https://github.com/xzelleiv/ytm-tauri/releases/download/v0.2.6/YouTube.Music_0.2.6_x64-setup.exe)
+[Download `YouTube.Music_0.2.6_x64-setup.exe`](https://github.com/Liebezx/ytm-tauri/releases/download/v0.2.6/YouTube.Music_0.2.6_x64-setup.exe)
 
-An MSI package is also available on the [release page](https://github.com/xzelleiv/ytm-tauri/releases/tag/v0.2.6).
+An MSI package is also available on the [release page](https://github.com/Liebezx/ytm-tauri/releases/tag/v0.2.6).
 
-> Windows may show an “Unknown publisher” notice because this community release is not code-signed.
+> Releases published via GitHub Actions are signed through the [Code signing policy](CODE_SIGNING_POLICY.md) (SignPath.io / SignPath Foundation).
 
 ## Features
 
@@ -239,5 +239,9 @@ Add or update unit tests when changing URL policy, ad URL rules, or security-sen
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
 Third-party dependency acknowledgements are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

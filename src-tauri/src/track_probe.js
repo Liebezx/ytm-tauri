@@ -129,7 +129,7 @@
     }
 
     const button = document.querySelector(
-      "ytmusic-player-bar #play-pause-button, ytmusic-player-bar .play-pause-button"
+      "ytmusic-player-bar #play-pause-button, ytmusic-player-bar .play-pause-button, [slot='player-bar'] #play-pause-button, [slot='player-bar'] .play-pause-button, ytmusic-miniplayer [aria-label^='Play'], ytmusic-miniplayer [aria-label^='Pause']"
     );
     const label = clean(
       (button && (button.getAttribute("title") || button.getAttribute("aria-label"))) || ""
@@ -143,7 +143,7 @@
       return false;
     }
 
-    const playerBar = document.querySelector("ytmusic-player-bar");
+    const playerBar = document.querySelector("ytmusic-player-bar, [slot='player-bar'], ytmusic-miniplayer");
     return Boolean(playerBar && playerBar.className && String(playerBar.className).includes("playing"));
   };
 
@@ -160,17 +160,19 @@
     }
 
     const progress = document.querySelector(
-      "ytmusic-player-bar tp-yt-paper-slider, ytmusic-player-bar #progress-bar"
+      "ytmusic-player-bar tp-yt-paper-slider, ytmusic-player-bar #progress-bar, [slot='player-bar'] tp-yt-paper-slider, [slot='player-bar'] #progress-bar, ytmusic-miniplayer input[type='range'], ytmusic-miniplayer .ytMusicMiniPlayerProgressBar"
     );
     const elapsed = numeric(
       progress &&
-        (progress.getAttribute("value") ||
+        (progress.value ||
+          progress.getAttribute("value") ||
           progress.getAttribute("aria-valuenow") ||
           progress.getAttribute("aria-valuetext"))
     );
     const duration = numeric(
       progress &&
-        (progress.getAttribute("max") ||
+        (progress.max ||
+          progress.getAttribute("max") ||
           progress.getAttribute("aria-valuemax"))
     );
 
@@ -197,6 +199,8 @@
       [
         "ytmusic-player-bar .title a[href*='watch']",
         "ytmusic-player-bar yt-formatted-string.title a[href*='watch']",
+        "[slot='player-bar'] .title a[href*='watch']",
+        "[slot='player-bar'] a[href*='watch?v=']",
         "a[href^='/watch'][href*='v=']",
       ],
       "href"
@@ -221,6 +225,8 @@
           "ytmusic-player-bar img.image",
           "ytmusic-player-bar img.thumbnail",
           "ytmusic-player-bar img[src]",
+          "[slot='player-bar'] img[src]",
+          "ytmusic-miniplayer img[src]",
         ],
         "src"
       )
@@ -239,6 +245,8 @@
         "ytmusic-player-bar .title",
         "ytmusic-player-bar yt-formatted-string.title",
         ".ytmusic-player-bar .title",
+        "[slot='player-bar'] .title",
+        "ytmusic-miniplayer .ytMusicMiniPlayerTrackInfo .title",
       ]);
 
     if (!title || title === "YouTube Music") {
@@ -249,6 +257,8 @@
       "ytmusic-player-bar .byline",
       "ytmusic-player-bar yt-formatted-string.byline",
       ".ytmusic-player-bar .byline",
+      "[slot='player-bar'] .byline",
+      "ytmusic-miniplayer .ytMusicMiniPlayerTrackInfo .byline",
     ]);
     const bylineParts = splitByline(byline);
     const timing = readTiming();
@@ -286,7 +296,7 @@
 
   const publishClear = () => {
     if (isCustomTitle()) {
-      window.setTimeout(publishClear, 80);
+      window.setTimeout(publishClear, 30);
       return;
     }
     if (lastPayload === CLEAR_PAYLOAD) {
@@ -304,7 +314,7 @@
 
   const publish = () => {
     if (isCustomTitle()) {
-      window.setTimeout(publish, 80);
+      window.setTimeout(publish, 30);
       return;
     }
     if (!isMusicHost() || !document.body) {
@@ -343,9 +353,35 @@
     }
   };
 
-  const schedulePublish = () => {
+  const schedulePublish = (delayMs = 35) => {
     window.clearTimeout(publishTimer);
-    publishTimer = window.setTimeout(publish, 180);
+    publishTimer = window.setTimeout(publish, delayMs);
+  };
+
+  let observedTarget = null;
+  const attachObserverTarget = (observer) => {
+    const target = document.querySelector("ytmusic-player-bar, [slot='player-bar'], ytmusic-miniplayer") || document.documentElement;
+    if (target && target !== observedTarget) {
+      observer.disconnect();
+      observedTarget = target;
+      observer.observe(target, {
+        attributes: true,
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+  };
+
+  const isProgressTickMutation = (mutations) => {
+    if (!Array.isArray(mutations) || !mutations.length) return false;
+    for (const m of mutations) {
+      const t = m.target?.nodeType === 3 ? m.target.parentElement : m.target;
+      if (!t?.closest?.("#progress-bar, tp-yt-paper-slider, .time-info")) {
+        return false;
+      }
+    }
+    return true;
   };
 
   const installObserver = () => {
@@ -354,24 +390,30 @@
       return;
     }
 
-    const observer = new MutationObserver(schedulePublish);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      childList: true,
-      characterData: true,
-      subtree: true,
+    const observer = new MutationObserver((mutations) => {
+      attachObserverTarget(observer);
+      if (isProgressTickMutation(mutations)) return;
+      schedulePublish();
     });
+    attachObserverTarget(observer);
 
-    document.addEventListener("yt-navigate-finish", schedulePublish, true);
-    document.addEventListener("play", schedulePublish, true);
-    document.addEventListener("pause", schedulePublish, true);
+    document.addEventListener("yt-navigate-finish", () => {
+      attachObserverTarget(observer);
+      publish();
+    }, true);
+    document.addEventListener("play", () => schedulePublish(10), true);
+    document.addEventListener("pause", () => schedulePublish(10), true);
+    document.addEventListener("loadedmetadata", () => schedulePublish(10), true);
     document.addEventListener("seeked", () => {
       lastProgressPublish = 0;
       lastPayload = "";
-      schedulePublish();
+      schedulePublish(10);
     }, true);
 
-    window.setInterval(publish, 2500);
+    window.setInterval(() => {
+      attachObserverTarget(observer);
+      publish();
+    }, 5000);
     schedulePublish();
   };
 
